@@ -1,4 +1,4 @@
-const User = require('../models/User');
+const User = require('../models/NguoiDung');
 const jwt = require('jsonwebtoken');
 const transporter = require('../config/nodemailer');
 
@@ -35,7 +35,7 @@ const login = async (req, res) => {
     }
 
     // Kiểm tra tài khoản có active không
-    if (!user.isActive) {
+    if (!user.trangThaiHoatDong) {
       return res.status(403).json({
         success: false,
         message: 'Tài khoản đã bị khóa'
@@ -43,7 +43,7 @@ const login = async (req, res) => {
     }
 
     // Nếu là student hoặc teacher và chưa verify, gửi OTP và redirect
-    if ((user.role === 'student' || user.role === 'teacher') && !user.isverify) {
+    if ((user.role === 'student' || user.role === 'teacher') && !user.daXacThuc) {
       // Generate and send OTP
       const otp = await user.generateOTP();
       await sendOTP(email, otp);
@@ -66,10 +66,10 @@ const login = async (req, res) => {
       token,
       user: {
         id: user._id,
-        name: user.name,
         email: user.email,
         role: user.role,
-        FullName: user.FullName
+        hovaten: user.hovaten,
+        soDienThoai: user.soDienThoai
       }
     });
 
@@ -84,14 +84,17 @@ const login = async (req, res) => {
 
 const register = async (req, res) => {
   try {
-    const { name, email, password, FullName, Numberphone } = req.body;
+    const { email, password, hovaten, soDienThoai } = req.body;
     console.log(`Register attempt for: ${email}`);
 
     // Validate input
-    if (!name || !email || !password) {
+    const resolvedFullName = (hovaten || "").trim();
+    const resolvedPhone = (soDienThoai || "").trim();
+
+    if (!email || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Tên, email và mật khẩu là bắt buộc'
+        message: 'Email và mật khẩu là bắt buộc'
       });
     }
     // Check if user exists
@@ -105,14 +108,13 @@ const register = async (req, res) => {
 
     // Create new user
     const newUser = new User({
-      name,
       email,
-      hashpassword: password, // Sẽ được hash tự động bởi middleware
-      FullName,
-      Numberphone,
+      password: password, // Sẽ được hash tự động bởi middleware
+      hovaten: resolvedFullName || undefined,
+      soDienThoai: resolvedPhone || undefined,
       role: 'student', // Đăng ký mặc định là học viên
-      isverify: false,
-      isActive: true
+      daXacThuc: false,
+      trangThaiHoatDong: true
     });
 
     await newUser.save();
@@ -123,10 +125,10 @@ const register = async (req, res) => {
       message: 'Đăng ký thành công',
       user: {
         id: newUser._id,
-        name: newUser.name,
         email: newUser.email,
         role: newUser.role,
-        FullName: newUser.FullName
+        hovaten: newUser.hovaten,
+        soDienThoai: newUser.soDienThoai
       }
     });
 
@@ -215,7 +217,7 @@ const verifyOTP = async (req, res) => {
       });
     }
 
-    if (user.isverify) {
+    if (user.daXacThuc) {
       return res.status(400).json({
         success: false,
         message: 'Tài khoản đã được xác thực'
@@ -263,7 +265,7 @@ const resendOTP = async (req, res) => {
       });
     }
 
-    if (user.isverify) {
+    if (user.daXacThuc) {
       return res.status(400).json({
         success: false,
         message: 'Tài khoản đã được xác thực'
@@ -308,7 +310,7 @@ const forgotPassword = async (req, res) => {
     }
 
     // Kiểm tra tài khoản có active không
-    if (!user.isActive) {
+    if (!user.trangThaiHoatDong) {
       return res.status(403).json({
         success: false,
         message: 'Tài khoản đã bị khóa'
@@ -434,7 +436,7 @@ const resetPassword = async (req, res) => {
     }
 
     // Update password
-    user.hashpassword = newPassword; // Sẽ được hash bởi middleware
+    user.password = newPassword; // Sẽ được hash bởi middleware
     await user.save();
 
     res.status(200).json({
