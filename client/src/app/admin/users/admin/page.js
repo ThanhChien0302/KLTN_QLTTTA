@@ -160,7 +160,7 @@ export default function AdminAccountsPage() {
   };
 
   return (
-    <div className="p-4 md:p-6 bg-gray-50 dark:bg-gray-900 min-h-full">
+    <div className="p-4 md:p-6 bg-gray-50 dark:bg-gray-950 min-h-full">
       <div className="max-w-7xl mx-auto">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Quản lý Quản trị viên</h1>

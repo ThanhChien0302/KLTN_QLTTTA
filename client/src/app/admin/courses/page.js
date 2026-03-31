@@ -36,6 +36,24 @@ const dayOfWeekToString = (day) => {
     return days[day] || 'N/A';
 };
 
+const getNextNewCourseName = (courseList = []) => {
+    const baseName = "Khóa học mới";
+    const existingNames = new Set(
+        courseList.map((course) => (course?.name || "").trim().toLowerCase()).filter(Boolean)
+    );
+
+    if (!existingNames.has(baseName.toLowerCase())) {
+        return baseName;
+    }
+
+    let index = 1;
+    while (existingNames.has(`${baseName} ${index}`.toLowerCase())) {
+        index += 1;
+    }
+
+    return `${baseName} ${index}`;
+};
+
 export default function CoursesListPage() {
     const { token } = useAuth();
     const [courses, setCourses] = useState([]);
@@ -81,6 +99,10 @@ export default function CoursesListPage() {
         try {
             // Loại bỏ campusId vì nó chỉ dùng để lọc, không lưu trong Course model
             const { campusId, ...dataToSubmit } = formData;
+            const normalizedName = (dataToSubmit.name || "").trim().toLowerCase();
+            if (!normalizedName || normalizedName.startsWith("khóa học mới")) {
+                dataToSubmit.name = getNextNewCourseName(courses);
+            }
 
             const response = await fetch(API_URL, {
                 method: 'POST',
@@ -128,9 +150,10 @@ export default function CoursesListPage() {
     }, [processedCourses]);
 
     const months = Array.from({ length: 12 }, (_, i) => ({ value: i + 1, label: `Tháng ${i + 1}` }));
+    const nextDefaultCourseName = useMemo(() => getNextNewCourseName(courses), [courses]);
 
     return (
-        <div className="p-4 md:p-6 bg-gray-50 dark:bg-gray-900 min-h-full">
+        <div className="p-4 md:p-6 bg-gray-50 dark:bg-gray-950 min-h-full">
             <div className="max-w-7xl mx-auto">
                 <div className="mb-6">
                     <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Danh sách Khóa học</h1>
@@ -236,6 +259,7 @@ export default function CoursesListPage() {
                     isOpen={isFormModalOpen}
                     onClose={() => setIsFormModalOpen(false)}
                     onSubmit={handleFormSubmit}
+                    defaultCourseName={nextDefaultCourseName}
                 />
             )}
         </div>
@@ -249,7 +273,7 @@ const StatCard = ({ title, value }) => (
   </div>
 );
 
-function CourseFormModal({ isOpen, onClose, onSubmit }) {
+function CourseFormModal({ isOpen, onClose, onSubmit, defaultCourseName }) {
     const { token } = useAuth();
     const [formData, setFormData] = useState({
         name: '',
@@ -295,6 +319,14 @@ function CourseFormModal({ isOpen, onClose, onSubmit }) {
         };
         if (isOpen) fetchOptions();
     }, [isOpen, token]);
+
+    useEffect(() => {
+        if (!isOpen) return;
+        setFormData((prev) => ({
+            ...prev,
+            name: defaultCourseName || "Khóa học mới",
+        }));
+    }, [isOpen, defaultCourseName]);
 
     const filteredClassrooms = useMemo(() => {
         if (!formData.campusId) return [];

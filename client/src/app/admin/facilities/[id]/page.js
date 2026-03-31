@@ -174,7 +174,7 @@ export default function FacilityDetailPage() {
 
   if (loading) {
     return (
-      <div className="p-6 min-h-full flex items-center justify-center bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white">
+      <div className="p-6 min-h-full flex items-center justify-center bg-gray-50 dark:bg-gray-950 text-gray-800 dark:text-gray-200">
         <p className="text-sm">Đang tải...</p>
       </div>
     );
@@ -182,7 +182,7 @@ export default function FacilityDetailPage() {
 
   if (error) {
     return (
-      <div className="p-6 min-h-full flex flex-col items-center justify-center space-y-3 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white">
+      <div className="p-6 min-h-full flex flex-col items-center justify-center space-y-3 bg-gray-50 dark:bg-gray-950 text-gray-800 dark:text-gray-200">
         <p className="text-sm text-red-500">{error}</p>
         <Link
           href="/admin/facilities"
@@ -201,7 +201,7 @@ export default function FacilityDetailPage() {
   const rooms = facility.phongHocList || [];
 
   return (
-    <div className="p-6 min-h-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white">
+    <div className="p-6 min-h-full bg-gray-50 dark:bg-gray-950 text-gray-800 dark:text-gray-200">
       <div className="max-w-5xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <div>

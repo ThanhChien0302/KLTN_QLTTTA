@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { FiPlus, FiEdit2, FiToggleLeft } from "react-icons/fi";
 import { useAuth } from "../../contexts/AuthContext";
 import ConfirmModal from "../../components/ConfirmModal";
@@ -30,12 +31,14 @@ const SearchIcon = ({ className }) => (
 export default function FacilitiesPage() {
   const { token } = useAuth();
   const { darkMode } = useTheme();
+  const router = useRouter();
 
   const [facilities, setFacilities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const [searchTerm, setSearchTerm] = useState("");
+  const [creatingFacility, setCreatingFacility] = useState(false);
 
   const [statusConfirmOpen, setStatusConfirmOpen] = useState(false);
   const [statusTarget, setStatusTarget] = useState(null); // { type: 'facility' | 'room', facilityId?, roomId?, currentStatus }
@@ -125,8 +128,36 @@ export default function FacilitiesPage() {
     }
   };
 
+  const handleCreateAndEditFacility = async () => {
+    if (!token || creatingFacility) return;
+    try {
+      setCreatingFacility(true);
+      const res = await fetch(API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          Tencoso: "Cơ sở mới",
+          diachi: "Chưa cập nhật",
+          mota: "",
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Không thể tạo cơ sở mới");
+      if (!data?._id) throw new Error("Không nhận được ID cơ sở mới");
+      router.push(`/admin/facilities/${data._id}`);
+    } catch (err) {
+      console.error(err);
+      alert(err.message);
+    } finally {
+      setCreatingFacility(false);
+    }
+  };
+
   return (
-    <div className="p-4 md:p-6 min-h-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white">
+    <div className="p-4 md:p-6 min-h-full bg-gray-50 dark:bg-gray-950 text-gray-800 dark:text-gray-200">
       <div className="max-w-7xl mx-auto space-y-4">
         <div>
           <h1 className="text-xl font-semibold">Danh sách cơ sở</h1>
@@ -153,12 +184,14 @@ export default function FacilitiesPage() {
           </div>
 
           <div className="flex items-center gap-4 w-full md:w-auto justify-end">
-            <Link href="/admin/facilities/new">
-              <button className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition-colors">
-                <FiPlus className="h-5 w-5" />
-                Thêm cơ sở
-              </button>
-            </Link>
+            <button
+              onClick={handleCreateAndEditFacility}
+              disabled={creatingFacility}
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              <FiPlus className="h-5 w-5" />
+              {creatingFacility ? "Đang tạo..." : "Thêm cơ sở"}
+            </button>
           </div>
         </div>
 

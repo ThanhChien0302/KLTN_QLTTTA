@@ -23,6 +23,10 @@ export default function AdminLayout({ children }) {
     }
   }, []);
 
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", darkMode);
+  }, [darkMode]);
+
   const toggleTheme = () => {
     const newTheme = !darkMode;
     setDarkMode(newTheme);

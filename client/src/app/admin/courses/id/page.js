@@ -75,7 +75,7 @@ export default function CourseDetailPage() {
   if (!course) return <div className="p-8 text-center dark:text-gray-400">Không tìm thấy khóa học</div>;
 
   return (
-    <div className="p-4 md:p-6 bg-gray-50 dark:bg-gray-900 min-h-full">
+    <div className="p-4 md:p-6 bg-gray-50 dark:bg-gray-950 min-h-full">
       <div className="max-w-7xl mx-auto">
         {/* Navigation */}
         <div className="mb-6 flex items-center gap-4">

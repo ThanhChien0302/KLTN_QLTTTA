@@ -92,7 +92,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center px-4">
-      <div className="w-full max-w-3xl bg-white rounded-2xl shadow-md flex overflow-hidden">
+      <div className="w-full max-w-3xl bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-gray-700 transition-colors duration-300 flex overflow-hidden">
 
         {/* Left Panel - Branding */}
         <div className="w-1/2 flex flex-col items-center justify-center p-10 border-r border-gray-100">
