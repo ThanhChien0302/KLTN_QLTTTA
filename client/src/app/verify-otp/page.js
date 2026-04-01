@@ -39,7 +39,7 @@ export default function VerifyOTPPage() {
     setSuccess("");
 
     try {
-      const response = await fetch(`${API_BASE}/verify-otp`, {
+      const response = await fetch(`${API_BASE}/api/verify-otp`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -71,7 +71,7 @@ export default function VerifyOTPPage() {
     setSuccess("");
 
     try {
-      const response = await fetch(`${API_BASE}/resend-otp`, {
+      const response = await fetch(`${API_BASE}/api/resend-otp`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

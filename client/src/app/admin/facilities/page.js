@@ -5,11 +5,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FiPlus, FiEdit2, FiToggleLeft } from "react-icons/fi";
 import { useAuth } from "../../contexts/AuthContext";
+import { useNotification } from "../../contexts/NotificationContext";
 import ConfirmModal from "../../components/ConfirmModal";
 import { useTheme } from "../../contexts/ThemeContext";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
-const API_URL = `${API_BASE}/admin/facilities`;
+const API_URL = `${API_BASE}/api/admin/facilities`;
 
 const SearchIcon = ({ className }) => (
   <svg
@@ -30,8 +31,14 @@ const SearchIcon = ({ className }) => (
 
 export default function FacilitiesPage() {
   const { token } = useAuth();
+  const { success, error: notifyError, warning } = useNotification();
   const { darkMode } = useTheme();
   const router = useRouter();
+
+  const REGEX = useMemo(() => ({
+    facilityName: /^.{2,80}$/u,
+    address: /^.{5,160}$/u,
+  }), []);
 
   const [facilities, setFacilities] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -119,9 +126,14 @@ export default function FacilitiesPage() {
           f._id === statusTarget.facilityId ? { ...f, trangThaiHoatDong: newStatus } : f
         )
       );
+      if (newStatus) {
+        success("Đã mở lại trạng thái hoạt động của cơ sở.");
+      } else {
+        warning("Đã tạm khóa cơ sở.");
+      }
     } catch (err) {
       console.error(err);
-      alert(err.message);
+      notifyError(err.message);
     } finally {
       setStatusConfirmOpen(false);
       setStatusTarget(null);
@@ -132,6 +144,16 @@ export default function FacilitiesPage() {
     if (!token || creatingFacility) return;
     try {
       setCreatingFacility(true);
+      const Tencoso = "Cơ sở mới";
+      const diachi = "Chưa cập nhật";
+      if (!REGEX.facilityName.test(Tencoso)) {
+        warning("Tên cơ sở không hợp lệ.");
+        return;
+      }
+      if (!REGEX.address.test(diachi)) {
+        warning("Địa chỉ cơ sở không hợp lệ.");
+        return;
+      }
       const res = await fetch(API_URL, {
         method: "POST",
         headers: {
@@ -139,18 +161,19 @@ export default function FacilitiesPage() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          Tencoso: "Cơ sở mới",
-          diachi: "Chưa cập nhật",
+          Tencoso,
+          diachi,
           mota: "",
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Không thể tạo cơ sở mới");
       if (!data?._id) throw new Error("Không nhận được ID cơ sở mới");
+      success("Tạo cơ sở mới thành công.");
       router.push(`/admin/facilities/${data._id}`);
     } catch (err) {
       console.error(err);
-      alert(err.message);
+      notifyError(err.message);
     } finally {
       setCreatingFacility(false);
     }

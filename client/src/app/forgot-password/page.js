@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import PasswordStrength from "../components/PasswordStrength";
 
 export default function ForgotPassword() {
   const [step, setStep] = useState(1); // 1: email, 2: OTP, 3: new password
@@ -16,6 +17,7 @@ export default function ForgotPassword() {
   const router = useRouter();
 
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+  const PASSWORD_STRONG = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{7,}$/;
 
   const handleSendOTP = async () => {
     if (!email) {
@@ -28,7 +30,7 @@ export default function ForgotPassword() {
     setSuccess("");
 
     try {
-      const response = await fetch(`${API_BASE}/forgot-password`, {
+      const response = await fetch(`${API_BASE}/api/forgot-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -63,7 +65,7 @@ export default function ForgotPassword() {
     setSuccess("");
 
     try {
-      const response = await fetch(`${API_BASE}/verify-password-reset-otp`, {
+      const response = await fetch(`${API_BASE}/api/verify-password-reset-otp`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -99,8 +101,8 @@ export default function ForgotPassword() {
       return;
     }
 
-    if (newPassword.length < 6) {
-      setError("Mật khẩu phải có ít nhất 6 ký tự");
+    if (!PASSWORD_STRONG.test(newPassword)) {
+      setError("Mật khẩu phải > 6 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt");
       return;
     }
 
@@ -109,7 +111,7 @@ export default function ForgotPassword() {
     setSuccess("");
 
     try {
-      const response = await fetch(`${API_BASE}/reset-password`, {
+      const response = await fetch(`${API_BASE}/api/reset-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -268,6 +270,7 @@ export default function ForgotPassword() {
                 className="w-full border border-gray-300 rounded-md px-4 py-2.5 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
                 required
               />
+              <PasswordStrength password={newPassword} showWhenEmpty />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">

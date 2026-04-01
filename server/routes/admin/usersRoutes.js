@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { protect, admin, teacher, student } = require('../../middlewares/authMiddleware');
+const { protect, admin } = require('../../middlewares/authMiddleware');
 
 const {
     // Admin CRUD
@@ -9,9 +9,6 @@ const {
     getAllTeachers, getTeacherById, createTeacher, updateTeacher, toggleTeacherStatus, resetTeacherPassword,
     // Student CRUD (by admin)
     getAllStudents, getStudentById, createStudent, updateStudent, toggleStudentStatus, resetStudentPassword,
-    // Self-profile
-    getTeacherProfile, updateTeacherProfile,
-    getStudentProfile, updateStudentProfile,
 } = require('../../controllers/admin/usersControler');
 
 // ============================================================
@@ -53,29 +50,9 @@ studentAdminRouter.put('/:id', updateStudent);                      // Cập nh�
 studentAdminRouter.patch('/:id/status', toggleStudentStatus);       // Khoá / Mở khoá học viên
 studentAdminRouter.patch('/:id/password', resetStudentPassword);    // Đặt lại mật khẩu học viên
 
-// =============================================================
-//  NHÓM 4: GIẢNG VIÊN tự xem & cập nhật thông tin cá nhân
-// =============================================================
-const teacherSelfRouter = express.Router();
-teacherSelfRouter.use(protect, teacher);
-
-teacherSelfRouter.get('/profile', getTeacherProfile);       // Xem thông tin cá nhân
-teacherSelfRouter.put('/profile', updateTeacherProfile);    // Cập nhật thông tin cá nhân
-
-// =============================================================
-//  NHÓM 5: HỌC VIÊN tự xem & cập nhật thông tin cá nhân
-// =============================================================
-const studentSelfRouter = express.Router();
-studentSelfRouter.use(protect, student);
-
-studentSelfRouter.get('/profile', getStudentProfile);       // Xem thông tin cá nhân
-studentSelfRouter.put('/profile', updateStudentProfile);    // Cập nhật thông tin cá nhân
-
-// Export tất cả các sub-router để đăng ký ở index.js
+// Export các sub-router quản trị
 module.exports = {
     adminRouter,
     teacherAdminRouter,
     studentAdminRouter,
-    teacherSelfRouter,
-    studentSelfRouter,
 };

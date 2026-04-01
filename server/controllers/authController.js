@@ -82,6 +82,10 @@ const login = async (req, res) => {
   }
 };
 
+const isStrongPassword = (password) => {
+  return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{7,}$/.test(String(password || ""));
+};
+
 const register = async (req, res) => {
   try {
     const { email, password, hovaten, soDienThoai } = req.body;
@@ -95,6 +99,12 @@ const register = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Email và mật khẩu là bắt buộc'
+      });
+    }
+    if (!isStrongPassword(password)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mật khẩu phải > 6 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt'
       });
     }
     // Check if user exists
@@ -429,10 +439,10 @@ const resetPassword = async (req, res) => {
       });
     }
 
-    if (newPassword.length < 6) {
+    if (!isStrongPassword(newPassword)) {
       return res.status(400).json({
         success: false,
-        message: 'Mật khẩu phải có ít nhất 6 ký tự'
+        message: 'Mật khẩu phải > 6 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt'
       });
     }
 

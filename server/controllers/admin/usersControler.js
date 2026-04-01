@@ -22,6 +22,10 @@ const buildUserQuery = (queryParams, role) => {
     return query;
 };
 
+const isStrongPassword = (password) => {
+    return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{7,}$/.test(String(password || ""));
+};
+
 // ==========================================
 //  ========== ADMIN MANAGEMENT ==========
 // ==========================================
@@ -68,6 +72,9 @@ const createAdmin = async (req, res) => {
         if (!email || !password || !hovaten) {
             return res.status(400).json({ success: false, message: 'Email, mật khẩu và họ tên là bắt buộc' });
         }
+        if (!isStrongPassword(password)) {
+            return res.status(400).json({ success: false, message: 'Mật khẩu phải > 6 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt' });
+        }
 
         const exists = await NguoiDung.findOne({ email });
         if (exists) {
@@ -104,19 +111,33 @@ const createAdmin = async (req, res) => {
 // PUT /admin/users/admins/:id  — Cập nhật thông tin admin
 const updateAdmin = async (req, res) => {
     try {
-        const { hovaten, soDienThoai, diachi, gioitinh, ngaysinh } = req.body;
-
-        const admin = await NguoiDung.findOneAndUpdate(
-            { _id: req.params.id, role: 'admin' },
-            { hovaten, soDienThoai, diachi, gioitinh, ngaysinh },
-            { new: true, runValidators: true }
-        ).select('-password -maOTP -hanSuDungOTP');
+        const { hovaten, soDienThoai, diachi, gioitinh, ngaysinh, password } = req.body;
+        const admin = await NguoiDung.findOne({ _id: req.params.id, role: 'admin' });
 
         if (!admin) {
             return res.status(404).json({ success: false, message: 'Không tìm thấy admin' });
         }
 
-        res.status(200).json({ success: true, message: 'Cập nhật thông tin admin thành công', data: admin });
+        admin.hovaten = hovaten;
+        admin.soDienThoai = soDienThoai;
+        admin.diachi = diachi;
+        admin.gioitinh = gioitinh;
+        admin.ngaysinh = ngaysinh;
+
+        if (password !== undefined && password !== null && String(password).trim() !== '') {
+            if (!isStrongPassword(password)) {
+                return res.status(400).json({ success: false, message: 'Mật khẩu mới phải > 6 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt' });
+            }
+            admin.password = String(password);
+        }
+
+        await admin.save();
+        const adminResult = admin.toObject();
+        delete adminResult.password;
+        delete adminResult.maOTP;
+        delete adminResult.hanSuDungOTP;
+
+        res.status(200).json({ success: true, message: 'Cập nhật thông tin admin thành công', data: adminResult });
     } catch (error) {
         console.error('Lỗi cập nhật admin:', error);
         res.status(500).json({ success: false, message: 'Lỗi máy chủ' });
@@ -242,6 +263,9 @@ const createTeacher = async (req, res) => {
         if (!email || !password || !hovaten) {
             return res.status(400).json({ success: false, message: 'Email, mật khẩu và họ tên là bắt buộc' });
         }
+        if (!isStrongPassword(password)) {
+            return res.status(400).json({ success: false, message: 'Mật khẩu phải > 6 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt' });
+        }
 
         const exists = await NguoiDung.findOne({ email });
         if (exists) {
@@ -285,17 +309,26 @@ const createTeacher = async (req, res) => {
 // PUT /admin/users/teachers/:id  — Cập nhật thông tin giảng viên
 const updateTeacher = async (req, res) => {
     try {
-        const { hovaten, soDienThoai, diachi, gioitinh, ngaysinh, TrinhDoHocVan, kinhnghiem, chuyenmon } = req.body;
-
-        const user = await NguoiDung.findOneAndUpdate(
-            { _id: req.params.id, role: 'teacher' },
-            { hovaten, soDienThoai, diachi, gioitinh, ngaysinh },
-            { new: true, runValidators: true }
-        ).select('-password -maOTP -hanSuDungOTP');
+        const { hovaten, soDienThoai, diachi, gioitinh, ngaysinh, TrinhDoHocVan, kinhnghiem, chuyenmon, password } = req.body;
+        const user = await NguoiDung.findOne({ _id: req.params.id, role: 'teacher' });
 
         if (!user) {
             return res.status(404).json({ success: false, message: 'Không tìm thấy giảng viên' });
         }
+
+        user.hovaten = hovaten;
+        user.soDienThoai = soDienThoai;
+        user.diachi = diachi;
+        user.gioitinh = gioitinh;
+        user.ngaysinh = ngaysinh;
+
+        if (password !== undefined && password !== null && String(password).trim() !== '') {
+            if (!isStrongPassword(password)) {
+                return res.status(400).json({ success: false, message: 'Mật khẩu mới phải > 6 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt' });
+            }
+            user.password = String(password);
+        }
+        await user.save();
 
         const giangVienInfo = await GiangVien.findOneAndUpdate(
             { userId: req.params.id },
@@ -427,6 +460,9 @@ const createStudent = async (req, res) => {
         if (!email || !password || !hovaten) {
             return res.status(400).json({ success: false, message: 'Email, mật khẩu và họ tên là bắt buộc' });
         }
+        if (!isStrongPassword(password)) {
+            return res.status(400).json({ success: false, message: 'Mật khẩu phải > 6 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt' });
+        }
 
         const exists = await NguoiDung.findOne({ email });
         if (exists) {
@@ -468,17 +504,26 @@ const createStudent = async (req, res) => {
 // PUT /admin/users/students/:id  — Cập nhật thông tin học viên
 const updateStudent = async (req, res) => {
     try {
-        const { hovaten, soDienThoai, diachi, gioitinh, ngaysinh, faceDescriptor } = req.body;
-
-        const user = await NguoiDung.findOneAndUpdate(
-            { _id: req.params.id, role: 'student' },
-            { hovaten, soDienThoai, diachi, gioitinh, ngaysinh },
-            { new: true, runValidators: true }
-        ).select('-password -maOTP -hanSuDungOTP');
+        const { hovaten, soDienThoai, diachi, gioitinh, ngaysinh, faceDescriptor, password } = req.body;
+        const user = await NguoiDung.findOne({ _id: req.params.id, role: 'student' });
 
         if (!user) {
             return res.status(404).json({ success: false, message: 'Không tìm thấy học viên' });
         }
+
+        user.hovaten = hovaten;
+        user.soDienThoai = soDienThoai;
+        user.diachi = diachi;
+        user.gioitinh = gioitinh;
+        user.ngaysinh = ngaysinh;
+
+        if (password !== undefined && password !== null && String(password).trim() !== '') {
+            if (!isStrongPassword(password)) {
+                return res.status(400).json({ success: false, message: 'Mật khẩu mới phải > 6 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt' });
+            }
+            user.password = String(password);
+        }
+        await user.save();
 
         const hocVienInfo = await HocVien.findOneAndUpdate(
             { userId: req.params.id },

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import PasswordStrength from "../components/PasswordStrength";
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -23,6 +24,7 @@ export default function RegisterPage() {
   };
 
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+  const PASSWORD_STRONG = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{7,}$/;
 
   const handleRegister = async (e) => {
     e.preventDefault();
@@ -31,7 +33,12 @@ export default function RegisterPage() {
     setSuccess("");
 
     try {
-      const response = await fetch(`${API_BASE}/register`, {
+      if (!PASSWORD_STRONG.test(formData.password || "")) {
+        setError("Mật khẩu phải > 6 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt.");
+        setLoading(false);
+        return;
+      }
+      const response = await fetch(`${API_BASE}/api/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -106,6 +113,7 @@ export default function RegisterPage() {
               required
               className="w-full border border-gray-300 rounded-md px-4 py-2.5 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition"
             />
+            <PasswordStrength password={formData.password} showWhenEmpty />
           </div>
 
           <div>

@@ -6,6 +6,8 @@ var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
 var cors = require('cors');
+const swaggerUi = require("swagger-ui-express");
+const swaggerSpec = require("./config/swagger");
 
 var indexRouter = require('./routes/index');
 
@@ -32,8 +34,9 @@ app.use(cors(corsOptions));
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-// routes
-app.use('/', indexRouter);
+// routes (prefix /api cho toàn bộ REST API)
+app.use('/api', indexRouter);
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 
 // catch 404
@@ -61,6 +64,10 @@ const startServer = async () => {
     await connectDB();
     app.listen(PORT, () => {
       console.log(`Server running at http://localhost:${PORT}`);
+      console.log(`Swagger UI: http://localhost:${PORT}/api-docs`);
+      const apiPaths = Object.keys(swaggerSpec.paths || {});
+      console.log("Danh sach API da khai bao trong Swagger:");
+      apiPaths.forEach((p) => console.log(`- ${p}`));
     });
   } catch (error) {
     console.error("Failed to connect to Database. Server not started.", error);

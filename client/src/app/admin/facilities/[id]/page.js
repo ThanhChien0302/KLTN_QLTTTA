@@ -4,18 +4,26 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "../../../contexts/AuthContext";
+import { useNotification } from "../../../contexts/NotificationContext";
 import ConfirmModal from "../../../components/ConfirmModal";
 import { useTheme } from "../../../contexts/ThemeContext";
 import { FiArrowLeft, FiPlus, FiEdit2, FiToggleLeft } from "react-icons/fi";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
-const API_URL = `${API_BASE}/admin/facilities`;
+const API_URL = `${API_BASE}/api/admin/facilities`;
 
 export default function FacilityDetailPage() {
   const { id } = useParams();
   const router = useRouter();
   const { token } = useAuth();
+  const { success, error: notifyError, warning } = useNotification();
   const { darkMode } = useTheme();
+
+  const REGEX = {
+    facilityName: /^.{2,80}$/u,
+    address: /^.{5,160}$/u,
+    roomName: /^.{2,40}$/u,
+  };
 
   const [facility, setFacility] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -73,6 +81,16 @@ export default function FacilityDetailPage() {
   const handleSubmitFacility = async (e) => {
     e.preventDefault();
     try {
+      const Tencoso = (formData.Tencoso || "").trim();
+      const diachi = (formData.diachi || "").trim();
+      if (!REGEX.facilityName.test(Tencoso)) {
+        warning("Tên cơ sở không hợp lệ (2-80 ký tự).");
+        return;
+      }
+      if (!REGEX.address.test(diachi)) {
+        warning("Địa chỉ không hợp lệ (tối thiểu 5 ký tự).");
+        return;
+      }
       const res = await fetch(`${API_URL}/${id}`, {
         method: "PUT",
         headers: {
@@ -84,10 +102,10 @@ export default function FacilityDetailPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Cập nhật cơ sở thất bại");
       setFacility((prev) => (prev ? { ...prev, ...data } : data));
-      alert("Đã lưu thay đổi cơ sở");
+      success("Đã lưu thay đổi cơ sở.");
     } catch (e) {
       console.error(e);
-      alert(e.message);
+      notifyError(e.message);
     }
   };
 
@@ -102,6 +120,16 @@ export default function FacilityDetailPage() {
   const handleSubmitRoom = async (roomData) => {
     if (!facility) return;
     const isEdit = !!editingRoom?._id;
+    const TenPhong = (roomData?.TenPhong || "").trim();
+    const succhua = Number(roomData?.succhua || 0);
+    if (!REGEX.roomName.test(TenPhong)) {
+      warning("Tên phòng không hợp lệ (2-40 ký tự).");
+      return;
+    }
+    if (!Number.isInteger(succhua) || succhua < 1 || succhua > 200) {
+      warning("Sức chứa phải là số nguyên từ 1 đến 200.");
+      return;
+    }
     const url = isEdit
       ? `${API_URL}/rooms/${editingRoom._id}`
       : `${API_URL}/${facility._id}/rooms`;
@@ -113,7 +141,7 @@ export default function FacilityDetailPage() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(roomData),
+        body: JSON.stringify({ ...roomData, TenPhong, succhua }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Lưu phòng học thất bại");
@@ -129,9 +157,10 @@ export default function FacilityDetailPage() {
         return { ...prev, phongHocList: [data, ...list] };
       });
       setEditingRoom(null);
+      success(isEdit ? "Cập nhật phòng học thành công." : "Thêm phòng học thành công.");
     } catch (e) {
       console.error(e);
-      alert(e.message);
+      notifyError(e.message);
     }
   };
 
@@ -163,9 +192,14 @@ export default function FacilityDetailPage() {
           ),
         };
       });
+      if (newStatus) {
+        success("Đã mở lại phòng học.");
+      } else {
+        warning("Đã tạm khóa phòng học.");
+      }
     } catch (e) {
       console.error(e);
-      alert(e.message);
+      notifyError(e.message);
     } finally {
       setStatusConfirmOpen(false);
       setRoomStatusTarget(null);

@@ -37,8 +37,6 @@ const {
   adminRouter,
   teacherAdminRouter,
   studentAdminRouter,
-  teacherSelfRouter,
-  studentSelfRouter,
 } = require('./admin/usersRoutes');
 
 // Admin quản lý tài khoản admin
@@ -49,11 +47,5 @@ router.use('/admin/users/teachers', teacherAdminRouter);
 
 // Admin quản lý tài khoản học viên
 router.use('/admin/users/students', studentAdminRouter);
-
-// Giảng viên tự xem & cập nhật thông tin cá nhân
-router.use('/teacher', teacherSelfRouter);
-
-// Học viên tự xem & cập nhật thông tin cá nhân
-router.use('/student', studentSelfRouter);
 
 module.exports = router;
