@@ -1,10 +1,17 @@
 const multer = require("multer");
 const path = require("path");
+const fs = require("fs");
+
+// Đảm bảo thư mục uploads tồn tại ở thư mục gốc server
+const uploadDir = path.join(__dirname, "../uploads");
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
 
 // Cấu hình nơi lưu file tạm
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, "uploads/"); // thư mục lưu ảnh tạm
+    cb(null, uploadDir); // sử dụng đường dẫn tuyệt đối
   },
   filename: (req, file, cb) => {
     const uniqueName = Date.now() + "-" + Math.round(Math.random() * 1e9);
@@ -12,15 +19,15 @@ const storage = multer.diskStorage({
   },
 });
 
-// Bộ lọc chỉ cho phép ảnh
+// Bộ lọc chỉ cho phép các loại file cụ thể
 const fileFilter = (req, file, cb) => {
-  const allowedTypes = [".jpg", ".jpeg", ".png", ".pdf", ".doc", ".docx", ".xls", ".xlsx"];
+  const allowedTypes = [".jpg", ".jpeg", ".png", ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".txt"];
   const ext = path.extname(file.originalname).toLowerCase();
 
   if (allowedTypes.includes(ext)) {
     cb(null, true);
   } else {
-    cb(new Error("Chỉ chấp nhận file: jpg, jpeg, png, pdf, doc, docx, xls, xlsx"), false);
+    cb(new Error("Chỉ chấp nhận file: jpg, jpeg, png, pdf, doc, docx, xls, xlsx, txt"), false);
   }
 };
 

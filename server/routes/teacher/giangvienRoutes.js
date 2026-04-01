@@ -1,15 +1,42 @@
 const express = require("express");
 const router = express.Router();
 
-// Import controller
-const controller = require("../../controllers/teacher/profileController");
-
-// SỬA TẠI ĐÂY: Lấy đúng hàm 'protect' từ object được export
+const profileController = require("../../controllers/teacher/profileController");
+const courseController = require("../../controllers/teacher/courseController");
+const assignmentController = require("../../controllers/teacher/assignmentController");
 const { protect } = require("../../middlewares/authMiddleware");
+const upload = require("../../middlewares/multer");
 
-// Sử dụng 'protect' làm middleware thay vì biến 'authMiddleware' chung chung
-router.get("/profile", protect, controller.getProfile);
-router.put("/profile", protect, controller.updateProfile);
-router.put("/doi-mat-khau", protect, controller.changePassword);
+// thông tin cá nhân
+router.get("/profile", protect, profileController.getProfile);
+router.put("/profile", protect, profileController.updateProfile);
+router.put("/change-password", protect, profileController.changePassword);
+
+
+//KHÓA HỌC
+//hien thi khoa hoc
+router.get("/courses", protect, courseController.getCourses);
+
+//hien thi hoc vien trong khoa hoc
+router.get("/courses/:courseId/students", protect, courseController.getStudentsByCourse);
+
+//xoahoc vien khoi khoa hoc
+router.delete("/courses/:courseId/students/:studentId", protect, courseController.deleteStudentFromCourse);
+
+//hien thi don xin nghi
+router.get("/courses/leave-requests", protect, courseController.getLeaveRequests);
+
+//bài tập
+router.get("/courses/:courseId/assignments", protect, assignmentController.getAssignments);
+router.post("/courses/:courseId/assignments", protect, upload.single("file"), assignmentController.createAssignment);
+router.get("/assignments/:id", protect, assignmentController.getAssignmentById);
+router.put("/assignments/:id", protect, upload.single("file"), assignmentController.updateAssignment);
+router.get("/assignments/:id/submissions", protect, assignmentController.getSubmissionsForAssignment);
+
+// duyệt đơn
+router.put("/courses/leave-requests/:id/approve", protect, courseController.approveLeaveRequest);
+
+// từ chối đơn
+router.put("/courses/leave-requests/:id/reject", protect, courseController.rejectLeaveRequest);
 
 module.exports = router;

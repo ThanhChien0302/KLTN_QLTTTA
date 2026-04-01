@@ -28,6 +28,10 @@ const nopBaiSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  diem: {
+    type: Number,
+    min: 0
+  },
   filedapan: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'File'

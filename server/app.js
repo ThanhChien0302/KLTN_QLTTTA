@@ -10,7 +10,7 @@ const swaggerUi = require("swagger-ui-express");
 const swaggerSpec = require("./config/swagger");
 
 var indexRouter = require('./routes/index');
-
+const profileRoutes = require("./routes/teacher/giangvienRoutes");
 
 var app = express();
 
@@ -38,6 +38,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use('/api', indexRouter);
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
+
+app.use("/teacher", profileRoutes);
 
 // catch 404
 app.use(function (req, res, next) {

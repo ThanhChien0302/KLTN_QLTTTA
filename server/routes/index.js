@@ -3,7 +3,7 @@ var router = express.Router();
 const { login, register, verifyOTP, resendOTP, forgotPassword, verifyPasswordResetOTP, resetPassword } = require('../controllers/authController');
 
 /* GET home page. */
-router.get('/', function(req, res, next) {
+router.get('/', function (req, res, next) {
   res.json({ message: 'API Server is running' });
 });
 
@@ -47,5 +47,14 @@ router.use('/admin/users/teachers', teacherAdminRouter);
 
 // Admin quản lý tài khoản học viên
 router.use('/admin/users/students', studentAdminRouter);
+
+
+// Giảng viên tự xem & cập nhật thông tin cá nhân
+// COMMENT LẠI ĐỂ TRÁNH XUNG ĐỘT: Route này đã được xử lý trong giangvienRoutes (được load ở app.js)
+// router.use('/teacher', teacherSelfRouter);
+
+// Học viên tự xem & cập nhật thông tin cá nhân
+
+
 
 module.exports = router;

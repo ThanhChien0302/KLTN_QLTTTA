@@ -135,21 +135,19 @@ export default function Profile() {
           <nav className="flex">
             <button
               onClick={() => setActiveTab('personal')}
-              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === 'personal'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
+              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'personal'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
             >
               Thông tin cá nhân
             </button>
             <button
               onClick={() => setActiveTab('password')}
-              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === 'password'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
+              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'password'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
             >
               Đổi mật khẩu
             </button>
@@ -181,9 +179,8 @@ export default function Profile() {
                     value={formData.name}
                     onChange={handleChange}
                     disabled={!isEditing}
-                    className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      !isEditing ? 'bg-gray-50' : ''
-                    }`}
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${!isEditing ? 'bg-gray-50' : ''
+                      }`}
                     required
                   />
                 </div>
@@ -198,9 +195,8 @@ export default function Profile() {
                     value={formData.email}
                     onChange={handleChange}
                     disabled={!isEditing}
-                    className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      !isEditing ? 'bg-gray-50' : ''
-                    }`}
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${!isEditing ? 'bg-gray-50' : ''
+                      }`}
                     required
                   />
                 </div>
@@ -215,9 +211,8 @@ export default function Profile() {
                     value={formData.FullName}
                     onChange={handleChange}
                     disabled={!isEditing}
-                    className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      !isEditing ? 'bg-gray-50' : ''
-                    }`}
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${!isEditing ? 'bg-gray-50' : ''
+                      }`}
                     required
                   />
                 </div>
@@ -232,9 +227,8 @@ export default function Profile() {
                     value={formData.Numberphone}
                     onChange={handleChange}
                     disabled={!isEditing}
-                    className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      !isEditing ? 'bg-gray-50' : ''
-                    }`}
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${!isEditing ? 'bg-gray-50' : ''
+                      }`}
                   />
                 </div>
 
@@ -248,9 +242,8 @@ export default function Profile() {
                     value={formData.dateOfBirth}
                     onChange={handleChange}
                     disabled={!isEditing}
-                    className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      !isEditing ? 'bg-gray-50' : ''
-                    }`}
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${!isEditing ? 'bg-gray-50' : ''
+                      }`}
                   />
                 </div>
 
@@ -264,9 +257,8 @@ export default function Profile() {
                     value={formData.address}
                     onChange={handleChange}
                     disabled={!isEditing}
-                    className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      !isEditing ? 'bg-gray-50' : ''
-                    }`}
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${!isEditing ? 'bg-gray-50' : ''
+                      }`}
                     placeholder="Nhập địa chỉ của bạn"
                   />
                 </div>

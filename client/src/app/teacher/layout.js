@@ -47,8 +47,10 @@ export default function TeacherLayout({ children }) {
   if (!isAuthenticated || !isTeacher) return null;
 
   // Component link sidebar để tái sử dụng
-  const SidebarLink = ({ href, text, icon }) => {
-    const isActive = pathname === href;
+  const SidebarLink = ({ href, text, icon, activePath }) => {
+    // Dùng activePath nếu có, nếu không lấy phần path của href bỏ đi query string
+    const targetPath = activePath || href.split('?')[0];
+    const isActive = pathname === targetPath;
 
     return (
       <Link
@@ -118,10 +120,10 @@ export default function TeacherLayout({ children }) {
           <SidebarLink href="/teacher" text="Tổng quan" icon={<IconHome />} />
 
           <CollapsibleMenu text="Khóa Học" icon={<IconBook />} baseRoute="/teacher/courses">
-            <SidebarLink href="/teacher/courses/students" text="Quản lý học viên" />
-            <SidebarLink href="/teacher/courses/lessons" text="Quản lý bài học" />
-            <SidebarLink href="/teacher/courses/assignments" text="Quản lý bài tập" />
-            <SidebarLink href="/teacher/courses/leave-requests" text="Quản lý nghỉ phép" />
+            <SidebarLink activePath="/teacher/courses/students" href="/teacher/selectkhoahoc?redirect=/teacher/courses/students" text="Quản lý học viên" />
+            <SidebarLink activePath="/teacher/courses/lessons" href="/teacher/selectkhoahoc?redirect=/teacher/courses/lessons" text="Quản lý bài học" />
+            <SidebarLink activePath="/teacher/courses/assignments" href="/teacher/selectkhoahoc?redirect=/teacher/courses/assignments" text="Quản lý bài tập" />
+            <SidebarLink activePath="/teacher/courses/leave-requests" href="/teacher/courses/leave-requests" text="Quản lý nghỉ phép" />
           </CollapsibleMenu>
 
           <SidebarLink href="/teacher/schedule" text="Lịch dạy" icon={<IconCalendar />} />

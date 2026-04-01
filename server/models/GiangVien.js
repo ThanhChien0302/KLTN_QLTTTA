@@ -13,8 +13,8 @@ const giangVienSchema = new mongoose.Schema({
     trim: true
   },
   kinhnghiem: {
-    type: Number,
-    default: 0
+    type: String,
+    trim: true
   },
   chuyenmon: {
     type: String,
