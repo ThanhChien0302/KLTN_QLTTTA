@@ -57,7 +57,7 @@ const login = async (req, res) => {
 
     // Tạo token
     const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, {
-      expiresIn: '1d' // Token hết hạn sau 1 ngày
+      expiresIn: '30d' // Token hết hạn sau 30 ngày
     });
 
     // Đăng nhập thành công

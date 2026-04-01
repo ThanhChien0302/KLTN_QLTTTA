@@ -51,7 +51,7 @@ export default function TeacherDashboard() {
           </div>
           <p className="text-gray-600 mb-4">Quản lý khóa học, học viên và bài tập</p>
           <button
-            onClick={() => router.push('/teacher/courses/overview')}
+            onClick={() => router.push('/teacher/selectkhoahoc')}
             className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors"
           >
             Xem chi tiết

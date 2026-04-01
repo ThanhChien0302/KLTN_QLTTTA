@@ -6,9 +6,23 @@ const baiTapSchema = new mongoose.Schema({
     ref: 'KhoaHoc',
     required: true
   },
+  tieude: {
+    type: String,
+    required: true,
+    trim: true
+  },
   mota: {
     type: String,
     trim: true
+  },
+  loai: {
+    type: String,
+    enum: ['homework', 'test', 'listening', 'presentation'],
+    default: 'homework'
+  },
+  diem: {
+    type: Number,
+    default: 100
   },
   file: {
     type: mongoose.Schema.Types.ObjectId,

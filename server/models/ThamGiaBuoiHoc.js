@@ -19,6 +19,19 @@ const thamGiaBuoiHocSchema = new mongoose.Schema({
   thoigian_checkin: {
     type: Date
   },
+  thoigian_nop: {
+    type: Date
+  },
+  loai_don: {
+    type: String,
+    enum: ["om", "viec_rieng", "cong_tac"]
+  },
+  ngay_bat_dau: {
+    type: Date
+  },
+  ngay_ket_thuc: {
+    type: Date
+  },
   lydo_nghi: {
     type: String,
     trim: true

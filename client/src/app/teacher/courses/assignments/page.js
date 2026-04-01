@@ -1,52 +1,93 @@
 "use client";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
+
 export default function Assignments() {
-  const assignments = [
-    {
-      id: 1,
-      title: "Bài tập về nhà Unit 1",
-      description: "Hoàn thành bài tập ngữ pháp và từ vựng Unit 1",
-      dueDate: "2024-01-20",
-      status: "active",
-      submitted: 20,
-      total: 25,
-      type: "homework",
-      points: 100
-    },
-    {
-      id: 2,
-      title: "Bài kiểm tra giữa kỳ",
-      description: "Kiểm tra kiến thức từ Unit 1 đến Unit 3",
-      dueDate: "2024-01-25",
-      status: "upcoming",
-      submitted: 0,
-      total: 25,
-      type: "test",
-      points: 200
-    },
-    {
-      id: 3,
-      title: "Bài tập nghe Unit 2",
-      description: "Luyện tập kỹ năng nghe hiểu",
-      dueDate: "2024-01-18",
-      status: "completed",
-      submitted: 23,
-      total: 25,
-      type: "listening",
-      points: 50
-    },
-    {
-      id: 4,
-      title: "Bài thuyết trình nhóm",
-      description: "Thuyết trình về chủ đề gia đình",
-      dueDate: "2024-01-30",
-      status: "active",
-      submitted: 5,
-      total: 5,
-      type: "presentation",
-      points: 150
+  const [assignments, setAssignments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [courseName, setCourseName] = useState("");
+  const [stats, setStats] = useState({
+    total: 0,
+    active: 0,
+    upcoming: 0,
+    completed: 0,
+    overdue: 0
+  });
+
+  useEffect(() => {
+    fetchAssignments();
+    const name = localStorage.getItem("selectedCourseName");
+    if (name) setCourseName(name);
+  }, []);
+
+  const fetchAssignments = async () => {
+    try {
+      const courseId = localStorage.getItem("selectedCourseId");
+      if (!courseId) {
+        setLoading(false);
+        return;
+      }
+
+      const token = localStorage.getItem("token");
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+      const response = await fetch(`${apiUrl}/teacher/courses/${courseId}/assignments`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json"
+        }
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        const rawAssignments = data.data;
+        const now = new Date();
+        
+        let activeCount = 0;
+        let upcomingCount = 0;
+        let completedCount = 0;
+        let overdueCount = 0;
+
+        const processedAssignments = rawAssignments.map(ass => {
+          let statusResult = "completed";
+          const dueDate = new Date(ass.dueDate);
+          const createdAt = new Date(ass.createdAt);
+
+          if (now < createdAt) {
+            statusResult = "upcoming";
+            upcomingCount++;
+          } else if (now >= createdAt && now <= dueDate) {
+            statusResult = "active";
+            activeCount++;
+          } else if (now > dueDate) {
+            statusResult = "overdue";
+            overdueCount++;
+          } else {
+            statusResult = "completed";
+            completedCount++;
+          }
+
+          return {
+            ...ass,
+            status: statusResult
+          };
+        });
+
+        setAssignments(processedAssignments);
+        setStats({
+          total: processedAssignments.length,
+          active: activeCount,
+          upcoming: upcomingCount,
+          completed: completedCount,
+          overdue: overdueCount
+        });
+      }
+    } catch (error) {
+      console.error("Lỗi khi tải danh sách bài tập:", error);
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -74,7 +115,7 @@ export default function Assignments() {
       case 'overdue':
         return 'Quá hạn';
       default:
-        return status;
+        return 'Không xác định';
     }
   };
 
@@ -104,16 +145,24 @@ export default function Assignments() {
       case 'presentation':
         return 'Bài thuyết trình';
       default:
-        return type;
+        return 'Khác';
     }
   };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div className="bg-white rounded-lg shadow-md p-6">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold text-gray-800 mb-2">Quản Lý Bài Tập</h1>
+            <h1 className="text-2xl font-bold text-gray-800 mb-2">Quản Lý Bài Tập {courseName && `- ${courseName}`}</h1>
             <p className="text-gray-600">Tạo và theo dõi các bài tập, bài kiểm tra của học viên</p>
           </div>
           <Link href="/teacher/courses/add-ass">
@@ -126,82 +175,89 @@ export default function Assignments() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          {assignments.map((assignment) => (
-            <div key={assignment.id} className="bg-white rounded-lg shadow-md p-6">
-              <div className="flex justify-between items-start mb-4">
-                <div className="flex items-start space-x-3">
-                  <span className="text-2xl">{getTypeIcon(assignment.type)}</span>
-                  <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-1">{assignment.title}</h3>
-                    <p className="text-gray-600 text-sm mb-2">{assignment.description}</p>
-                    <div className="flex items-center space-x-4 text-sm text-gray-500">
-                      <span className="flex items-center">
-                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                        Hạn nộp: {assignment.dueDate}
-                      </span>
-                      <span className="flex items-center">
-                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        {assignment.points} điểm
-                      </span>
+          {assignments.length === 0 ? (
+            <div className="bg-white rounded-lg shadow-md p-8 text-center">
+              <p className="text-gray-500 mb-4">Chưa có bài tập nào cho khóa học này.</p>
+              <Link href="/teacher/courses/add-ass">
+                <button className="text-blue-600 hover:text-blue-800 font-medium">Bấm vào đây để tạo bài tập đầu tiên</button>
+              </Link>
+            </div>
+          ) : (
+            assignments.map((assignment) => (
+              <div key={assignment.id} className="bg-white rounded-lg shadow-md p-6">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="flex items-start space-x-3">
+                    <span className="text-2xl">{getTypeIcon(assignment.type)}</span>
+                    <div className="flex-1">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-1">{assignment.title}</h3>
+                      <p className="text-gray-600 text-sm mb-2">{assignment.description}</p>
+                      <div className="flex items-center space-x-4 text-sm text-gray-500">
+                        <span className="flex items-center">
+                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          Hạn nộp: {new Date(assignment.dueDate).toLocaleString('vi-VN')}
+                        </span>
+                        <span className="flex items-center">
+                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          {assignment.points} điểm
+                        </span>
+                      </div>
                     </div>
                   </div>
+                  <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${getStatusColor(assignment.status)}`}>
+                    {getStatusText(assignment.status)}
+                  </span>
                 </div>
-                <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${getStatusColor(assignment.status)}`}>
-                  {getStatusText(assignment.status)}
-                </span>
-              </div>
 
-              <div className="mb-4">
-                <div className="flex items-center justify-between text-sm mb-2">
-                  <span className="text-gray-600">Tiến độ nộp bài:</span>
-                  <span className="font-semibold">{assignment.submitted}/{assignment.total} học viên</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className={`h-2 rounded-full ${assignment.status === 'completed' ? 'bg-gray-600' :
-                      assignment.submitted === assignment.total ? 'bg-green-600' :
+                <div className="mb-4">
+                  <div className="flex items-center justify-between text-sm mb-2">
+                    <span className="text-gray-600">Tiến độ nộp bài:</span>
+                    <span className="font-semibold">{assignment.submitted}/{assignment.total} học viên</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                      className={`h-2 rounded-full ${
+                        assignment.status === 'completed' ? 'bg-gray-600' :
+                        assignment.submitted === assignment.total && assignment.total > 0 ? 'bg-green-600' :
                         assignment.submitted > 0 ? 'bg-blue-600' : 'bg-gray-400'
                       }`}
-                    style={{ width: `${(assignment.submitted / assignment.total) * 100}%` }}
-                  ></div>
+                      style={{ width: assignment.total > 0 ? `${(assignment.submitted / assignment.total) * 100}%` : '0%' }}
+                    ></div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-gray-600">
+                    <span className="font-medium">{getTypeText(assignment.type)}</span>
+                  </div>
+                  <div className="flex space-x-10">
+                    <button className="text-red-600 hover:text-red-900 text-sm font-medium">
+                      Xóa
+                    </button>
+                    <Link href={`/teacher/courses/grade-ass?id=${assignment.id}`}>
+                      <button className="text-green-600 hover:text-green-900 text-sm font-medium">
+                        Chấm điểm
+                      </button>
+                    </Link>
+
+                    <Link href={`/teacher/courses/edit-ass?id=${assignment.id}`}>
+                      <button className="text-gray-600 hover:text-gray-900 text-sm font-medium">
+                        Chỉnh sửa
+                      </button>
+                    </Link>
+                    <Link href={`/teacher/courses/detail-ass?id=${assignment.id}`}>
+                      <button className="text-blue-600 hover:text-blue-900 text-sm font-medium">
+                        Xem chi tiết
+                      </button>
+                    </Link>
+                  </div>
                 </div>
               </div>
-
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-gray-600">
-                  <span className="font-medium">{getTypeText(assignment.type)}</span>
-                </div>
-                <div className="flex space-x-10">
-                  <button className="text-red-600 hover:text-red-900 text-sm font-medium">
-                    Xóa
-                  </button>
-                  <Link href="/teacher/courses/grade-ass">
-                    <button className="text-green-600 hover:text-green-900 text-sm font-medium">
-                      Chấm điểm
-                    </button>
-                  </Link>
-
-                  <Link href="/teacher/courses/edit-ass">
-                    <button className="text-gray-600 hover:text-gray-900 text-sm font-medium">
-                      Chỉnh sửa
-                    </button>
-                  </Link>
-                  <Link href="/teacher/courses/detail-ass">
-                    <button className="text-blue-600 hover:text-blue-900 text-sm font-medium">
-                      Xem chi tiết
-                    </button>
-                  </Link>
-
-
-
-                </div>
-              </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
 
         <div className="space-y-6">
@@ -210,57 +266,48 @@ export default function Assignments() {
             <div className="space-y-4">
               <div className="flex justify-between">
                 <span className="text-gray-600">Tổng số bài tập:</span>
-                <span className="font-semibold">4</span>
+                <span className="font-semibold">{stats.total}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Đang hoạt động:</span>
-                <span className="font-semibold text-green-600">2</span>
+                <span className="font-semibold text-green-600">{stats.active}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Sắp tới:</span>
-                <span className="font-semibold text-blue-600">1</span>
+                <span className="font-semibold text-blue-600">{stats.upcoming}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Quá hạn:</span>
+                <span className="font-semibold text-red-600">{stats.overdue}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Đã kết thúc:</span>
-                <span className="font-semibold text-gray-600">1</span>
+                <span className="font-semibold text-gray-600">{stats.completed}</span>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Tỷ lệ nộp bài</h3>
-            <div className="space-y-3">
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span>Bài tập Unit 1</span>
-                  <span>80%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div className="bg-green-600 h-2 rounded-full" style={{ width: '80%' }}></div>
-                </div>
-              </div>
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span>Bài tập nghe Unit 2</span>
-                  <span>92%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div className="bg-green-600 h-2 rounded-full" style={{ width: '92%' }}></div>
-                </div>
-              </div>
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span>Bài thuyết trình</span>
-                  <span>100%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div className="bg-green-600 h-2 rounded-full" style={{ width: '100%' }}></div>
-                </div>
+          {assignments.length > 0 && (
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Tỷ lệ nộp bài</h3>
+              <div className="space-y-3">
+                {assignments.map(ass => {
+                  const percentage = ass.total > 0 ? Math.round((ass.submitted / ass.total) * 100) : 0;
+                  return (
+                    <div key={ass.id}>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="truncate w-3/4">{ass.title}</span>
+                        <span>{percentage}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div className="bg-green-600 h-2 rounded-full" style={{ width: `${percentage}%` }}></div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
-          </div>
-
-
+          )}
         </div>
       </div>
     </div>

@@ -10,6 +10,10 @@ const dangKyKhoaHocSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'KhoaHoc',
     required: true
+  },
+  so_ngay_nghi: {
+    type: Number,
+    default: 0
   }
 }, {
   timestamps: true

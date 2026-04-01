@@ -2,12 +2,16 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 
+// Đảm bảo thư mục uploads tồn tại ở thư mục gốc server
+const uploadDir = path.join(__dirname, "../uploads");
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
 // Cấu hình nơi lưu file tạm
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const dest = path.join(__dirname, "..", "public", "uploads");
-    if (!fs.existsSync(dest)) fs.mkdirSync(dest, { recursive: true });
-    cb(null, dest); // lưu file để truy cập qua /uploads/...
+    cb(null, uploadDir); // sử dụng đường dẫn tuyệt đối
   },
   filename: (req, file, cb) => {
     const uniqueName = Date.now() + "-" + Math.round(Math.random() * 1e9);
@@ -15,19 +19,33 @@ const storage = multer.diskStorage({
   },
 });
 
-// Bộ lọc cho phép tài liệu/phương tiện thông dụng
+// Bộ lọc chỉ cho phép các loại file cụ thể
 const fileFilter = (req, file, cb) => {
   const allowedTypes = [
-    ".jpg", ".jpeg", ".png", ".gif", ".webp",
-    ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
-    ".mp4", ".webm", ".mov"
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".gif",
+    ".webp",
+    ".pdf",
+    ".doc",
+    ".docx",
+    ".xls",
+    ".xlsx",
+    ".ppt",
+    ".pptx",
+    ".txt",
+    ".mp3",
+    ".mp4",
+    ".webm",
+    ".mov",
   ];
   const ext = path.extname(file.originalname).toLowerCase();
 
   if (allowedTypes.includes(ext)) {
     cb(null, true);
   } else {
-    cb(new Error("Chỉ chấp nhận file: ảnh, pdf, word, excel, ppt, video (mp4/webm/mov)"), false);
+    cb(new Error("Chỉ chấp nhận file: ảnh (jpg/jpeg/png/gif/webp), pdf, word, excel, ppt, txt, mp3, video (mp4/webm/mov)"), false);
   }
 };
 
@@ -35,7 +53,7 @@ const fileFilter = (req, file, cb) => {
 const upload = multer({
   storage,
   fileFilter,
-  limits: { fileSize: 5 * 1024 * 1024 }, // tối đa 5MB
+  limits: { fileSize: 25 * 1024 * 1024 }, // tối đa 25MB
 });
 
 module.exports = upload;
