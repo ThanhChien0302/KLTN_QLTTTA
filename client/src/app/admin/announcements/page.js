@@ -13,7 +13,7 @@ export default function AdminAnnouncementsPage() {
   const notify = useNotification();
 
   const [loading, setLoading] = useState(false);
-  const [tab, setTab] = useState("send"); // send | list
+  const [tab, setTab] = useState("list"); // send | list (crud only)
 
   const [courses, setCourses] = useState([]);
 
@@ -38,6 +38,8 @@ export default function AdminAnnouncementsPage() {
   const [listPage, setListPage] = useState(1);
   const [listLimit, setListLimit] = useState(20);
   const [listQ, setListQ] = useState("");
+
+  const [createOpen, setCreateOpen] = useState(false);
 
   const [editOpen, setEditOpen] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
@@ -171,10 +173,26 @@ export default function AdminAnnouncementsPage() {
   };
 
   useEffect(() => {
-    if (tab !== "list") return;
     fetchNotifications();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
+
+  const openCreate = () => {
+    setCreateOpen(true);
+    // reset form states
+    setTargetType("all");
+    setKhoaHocId("");
+    setRecipientQuery("");
+    setRoles(["student", "teacher"]);
+    setTieuDe("");
+    setNoidung("");
+    setFiles([]);
+    setDragOver(false);
+    setDocxPreviewLoading(false);
+    setDocxPreviewText("");
+    setDocxPreviewError("");
+    setDocxPreviewFileName("");
+  };
 
   const removeNotification = async (id) => {
     if (!id) return;
@@ -231,21 +249,21 @@ export default function AdminAnnouncementsPage() {
     e.preventDefault();
     if (!token) {
       notify.error("Bạn chưa đăng nhập");
-      return;
+      return false;
     }
     if (!noidung.trim()) {
       notify.warning("Vui lòng nhập nội dung thông báo");
-      return;
+      return false;
     }
 
     if (targetType === "class" && !khoaHocId) {
       notify.warning("Vui lòng chọn lớp (KhoaHoc)");
-      return;
+      return false;
     }
 
     if (targetType === "personal" && !recipientQuery.trim()) {
       notify.warning("Vui lòng nhập email hoặc họ tên để tìm người nhận");
-      return;
+      return false;
     }
 
     try {
@@ -283,48 +301,166 @@ export default function AdminAnnouncementsPage() {
       setFiles([]);
       setKhoaHocId("");
       setTargetType("all");
+
+      return true;
     } catch (e2) {
       notify.error(e2.message || "Gửi thông báo thất bại");
+      return false;
     } finally {
       setLoading(false);
     }
   };
 
+  const submitCreate = async (e) => {
+    const ok = await submit(e);
+    if (!ok) return;
+    setCreateOpen(false);
+    setListPage(1);
+    fetchNotifications({ nextPage: 1 });
+  };
+
   return (
     <div className="p-4 md:p-6 min-h-full bg-gray-50 dark:bg-gray-950">
-      <div className="max-w-3xl mx-auto space-y-4">
+      <div className="max-w-6xl mx-auto space-y-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Thông báo nội bộ (Admin)</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400">Gửi thông báo nội bộ theo toàn bộ hệ thống / theo lớp / theo cá nhân. Lưu trong DB (không gửi ra ngoài email).</p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setTab("send")}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold ${
-              tab === "send"
-                ? "bg-blue-600 text-white"
-                : "bg-white text-gray-700 border border-gray-200 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
-            }`}
-          >
-            Gửi
-          </button>
-          <button
-            type="button"
-            onClick={() => setTab("list")}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold ${
-              tab === "list"
-                ? "bg-blue-600 text-white"
-                : "bg-white text-gray-700 border border-gray-200 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
-            }`}
-          >
-            Danh sách (CRUD)
-          </button>
-        </div>
-
         {tab === "send" ? (
-          <form onSubmit={submit} className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 md:p-6 space-y-4">
+          <div className="grid grid-cols-3 md:grid-cols-4 gap-4 items-start">
+            <div className="col-span-2 md:col-span-3">
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 md:p-6 space-y-4">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <div className="space-y-1">
+                    <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">Danh sách thông báo</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">{listTotal} bản ghi</div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <InputField
+                      type="text"
+                      name="listQ"
+                      value={listQ}
+                      onChange={(e) => setListQ(e.target.value)}
+                      placeholder="Tìm theo tiêu đề hoặc nội dung..."
+                      inputClassName="w-[260px] max-w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fetchNotifications({ nextPage: 1 })}
+                      className="px-4 py-2 rounded-lg bg-blue-600 text-sm font-semibold text-white hover:bg-blue-700"
+                    >
+                      Tìm
+                    </button>
+                  </div>
+                </div>
+
+                {listLoading ? (
+                  <div className="text-sm text-gray-600 dark:text-gray-300">Đang tải...</div>
+                ) : notifications.length === 0 ? (
+                  <div className="text-sm text-gray-500 dark:text-gray-400">Chưa có thông báo.</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left">
+                      <thead className="bg-gray-50 dark:bg-gray-700/60 text-xs uppercase text-gray-600 dark:text-gray-300">
+                        <tr>
+                          <th className="px-3 py-2">Tiêu đề</th>
+                          <th className="px-3 py-2">Người nhận</th>
+                          <th className="px-3 py-2">Đối tượng</th>
+                          <th className="px-3 py-2">Trạng thái</th>
+                          <th className="px-3 py-2 text-right">Hành động</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {notifications.map((n) => (
+                          <tr key={n._id} className="border-t border-gray-100 dark:border-gray-700/60">
+                            <td className="px-3 py-3">
+                              <div className="font-semibold text-gray-900 dark:text-gray-100">
+                                {n.tieuDe || "(không tiêu đề)"}
+                              </div>
+                              <div className="text-xs text-gray-600 dark:text-gray-300">{truncate(n.noidung, 120)}</div>
+                            </td>
+                            <td className="px-3 py-3">
+                              <div className="text-sm text-gray-900 dark:text-gray-100">{countOf(n.userID)} người</div>
+                              <div className="text-xs text-gray-500 dark:text-gray-400">
+                                {n.createdBy?.hovaten ? `Gửi bởi: ${n.createdBy.hovaten}` : ""}
+                              </div>
+                            </td>
+                            <td className="px-3 py-3">
+                              <div className="text-sm text-gray-900 dark:text-gray-100">{n.targetType || "all"}</div>
+                              {n.targetType === "class" ? (
+                                <div className="text-xs text-gray-500 dark:text-gray-400">{n.khoaHocId?.tenkhoahoc || "-"}</div>
+                              ) : null}
+                            </td>
+                            <td className="px-3 py-3">
+                              {(() => {
+                                const recipientsCount = countOf(n.userID);
+                                const readCount = countOf(n.readByUserIds);
+                                const unreadCount = Math.max(0, recipientsCount - readCount);
+                                return (
+                                  <div className="space-y-1">
+                                    <div className="text-sm text-gray-900 dark:text-gray-100">
+                                      Đã đọc: {readCount}/{recipientsCount}
+                                    </div>
+                                    <div className="text-xs text-gray-500 dark:text-gray-400">Chưa đọc: {unreadCount}</div>
+                                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{formatDateTime(n.createdAt)}</div>
+                                  </div>
+                                );
+                              })()}
+                            </td>
+                            <td className="px-3 py-3 text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => openEdit(n)}
+                                  className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700"
+                                >
+                                  Sửa
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => removeNotification(n._id)}
+                                  className="px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-semibold hover:bg-red-700"
+                                >
+                                  Xóa
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-xs text-gray-500 dark:text-gray-400">Trang {listPage}</div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      className="px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={listPage <= 1}
+                      onClick={() => fetchNotifications({ nextPage: Math.max(1, listPage - 1) })}
+                    >
+                      Trước
+                    </button>
+                    <button
+                      type="button"
+                      className="px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={listPage * listLimit >= listTotal}
+                      onClick={() => fetchNotifications({ nextPage: listPage + 1 })}
+                    >
+                      Sau
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="col-span-1">
+              <form
+                onSubmit={submit}
+                className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 md:p-6 space-y-4"
+              >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm font-semibold text-gray-800 dark:text-gray-200">Đối tượng</label>
@@ -529,6 +665,8 @@ export default function AdminAnnouncementsPage() {
               </button>
             </div>
           </form>
+            </div>
+          </div>
         ) : (
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 md:p-6 space-y-4">
             <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -536,7 +674,14 @@ export default function AdminAnnouncementsPage() {
                 <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">Danh sách thông báo</div>
                 <div className="text-xs text-gray-500 dark:text-gray-400">{listTotal} bản ghi</div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={openCreate}
+                  className="px-4 py-2 rounded-lg bg-emerald-600 text-sm font-semibold text-white hover:bg-emerald-700"
+                >
+                  + Thêm thông báo
+                </button>
                 <InputField
                   type="text"
                   name="listQ"
@@ -659,8 +804,149 @@ export default function AdminAnnouncementsPage() {
           </div>
         )}
 
+        {createOpen ? (
+          <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/40 px-4 pointer-events-auto">
+            <div className="w-full max-w-3xl bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
+              <div className="px-6 py-4 border-b dark:border-gray-700 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-base font-bold text-gray-900 dark:text-gray-100">Thêm thông báo</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">Tạo mới và gửi tới người nhận phù hợp</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCreateOpen(false)}
+                  className="px-3 py-2 rounded-md text-sm font-medium bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-700"
+                >
+                  Đóng
+                </button>
+              </div>
+
+              <form onSubmit={submitCreate} className="px-6 py-5 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-800 dark:text-gray-200">Đối tượng</label>
+                    <InputField
+                      type="select"
+                      inputClassName="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm"
+                      name="targetType"
+                      value={targetType}
+                      onChange={(e) => setTargetType(e.target.value)}
+                      options={[
+                        { value: "all", label: "Tất cả" },
+                        { value: "class", label: "Theo lớp (KhoaHoc)" },
+                        { value: "personal", label: "Theo cá nhân (email/họ tên)" },
+                      ]}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-800 dark:text-gray-200">Vai trò nhận</label>
+                    <InputField
+                      type="select"
+                      inputClassName="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm"
+                      name="roles"
+                      value={roles.join(",")}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (v === "student") setRoles(["student"]);
+                        else if (v === "teacher") setRoles(["teacher"]);
+                        else setRoles(["student", "teacher"]);
+                      }}
+                      options={[
+                        { value: "student,teacher", label: "Học viên + Giảng viên" },
+                        { value: "student", label: "Chỉ học viên" },
+                        { value: "teacher", label: "Chỉ giảng viên" },
+                      ]}
+                    />
+                  </div>
+                </div>
+
+                {targetType === "class" ? (
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-800 dark:text-gray-200">Chọn lớp</label>
+                    <InputField
+                      type="select"
+                      inputClassName="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm"
+                      name="khoaHocId"
+                      value={khoaHocId}
+                      onChange={(e) => setKhoaHocId(e.target.value)}
+                      options={[
+                        { value: "", label: "-- Chọn --" },
+                        ...(courses || []).map((c) => ({
+                          value: c._id,
+                          label: `${c.tenkhoahoc} (${c.LoaiKhoaHocID?.Tenloai || "KhoaHoc"})`,
+                        })),
+                      ]}
+                    />
+                  </div>
+                ) : null}
+
+                {targetType === "personal" ? (
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-800 dark:text-gray-200">
+                      Tìm người nhận (email hoặc họ tên)
+                    </label>
+                    <InputField
+                      type="text"
+                      inputClassName="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm"
+                      name="recipientQuery"
+                      value={recipientQuery}
+                      onChange={(e) => setRecipientQuery(e.target.value)}
+                      placeholder="Ví dụ: student01@gmail.com hoặc Nguyễn Văn A"
+                    />
+                  </div>
+                ) : null}
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-gray-800 dark:text-gray-200">Tiêu đề (tuỳ chọn)</label>
+                  <InputField
+                    type="text"
+                    inputClassName="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm"
+                    name="tieuDe"
+                    value={tieuDe}
+                    onChange={(e) => setTieuDe(e.target.value)}
+                    placeholder="Thông báo..."
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-gray-800 dark:text-gray-200">Nội dung *</label>
+                  <InputField
+                    type="textarea"
+                    inputClassName="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm min-h-[120px]"
+                    name="noidung"
+                    value={noidung}
+                    onChange={(e) => setNoidung(e.target.value)}
+                    placeholder="Nhập nội dung thông báo..."
+                    rows={6}
+                    required
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-3 pt-2 border-t border-gray-200 dark:border-gray-700">
+                  <button
+                    type="button"
+                    onClick={() => setCreateOpen(false)}
+                    className="px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
+                    disabled={loading}
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="px-4 py-2.5 rounded-lg bg-blue-600 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-70 disabled:cursor-not-allowed"
+                  >
+                    {loading ? "Đang gửi..." : "Gửi thông báo"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        ) : null}
+
         {editOpen ? (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/40 px-4 pointer-events-auto">
             <div className="w-full max-w-xl bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
               <div className="px-6 py-4 border-b dark:border-gray-700 flex items-center justify-between gap-3">
                 <div className="min-w-0">

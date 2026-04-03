@@ -48,6 +48,21 @@ export default function TeacherAccountsPage() {
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [deletingUserId, setDeletingUserId] = useState(null);
 
+  const [isCompactLayout, setIsCompactLayout] = useState(false);
+  const [mobileFormOpen, setMobileFormOpen] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 1279px)");
+    const update = () => setIsCompactLayout(Boolean(mq.matches));
+    update();
+    if (mq.addEventListener) mq.addEventListener("change", update);
+    else mq.addListener(update);
+    return () => {
+      if (mq.removeEventListener) mq.removeEventListener("change", update);
+      else mq.removeListener(update);
+    };
+  }, []);
+
   const handleFieldChange = (e) => {
     const { name, value } = e?.target || {};
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -181,10 +196,22 @@ export default function TeacherAccountsPage() {
         setSelectedId(result.data._id);
         success("Tạo tài khoản giảng viên thành công.");
       }
+      if (mobileFormOpen) setMobileFormOpen(false);
     } catch (err) {
       setFormError(err.message);
       notifyError(`Lỗi: ${err.message}`);
     }
+  };
+
+  const openCreateModal = () => {
+    setSelectedId(null);
+    setFormData(emptyForm);
+    setMobileFormOpen(true);
+  };
+
+  const openEditModal = (id) => {
+    setSelectedId(id);
+    if (isCompactLayout) setMobileFormOpen(true);
   };
 
   const handleToggleStatus = async () => {
@@ -219,7 +246,18 @@ export default function TeacherAccountsPage() {
         <section className="xl:col-span-8 bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700">
           <div className="p-4 border-b dark:border-gray-700 flex justify-between items-center">
             <h2 className="font-semibold text-lg text-gray-900 dark:text-white">Danh sách Giảng viên</h2>
-            <button onClick={() => { setSelectedId(null); setFormData(emptyForm); }} className="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm flex items-center gap-1"><PlusIcon /> Thêm mới</button>
+            <button
+              onClick={() => { setSelectedId(null); setFormData(emptyForm); }}
+              className="hidden xl:flex px-3 py-2 bg-blue-600 text-white rounded-lg text-sm items-center gap-1"
+            >
+              <PlusIcon /> Thêm mới
+            </button>
+            <button
+              onClick={openCreateModal}
+              className="xl:hidden px-3 py-2 bg-blue-600 text-white rounded-lg text-sm flex items-center gap-1"
+            >
+              <PlusIcon /> Thêm giảng viên
+            </button>
           </div>
           <div className="p-4 flex gap-3">
             <input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Tìm kiếm theo tên, email hoặc chuyên môn..." className="flex-1 px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600" />
@@ -239,13 +277,28 @@ export default function TeacherAccountsPage() {
               {loading && <tr><td colSpan={5} className="text-center py-8">Đang tải...</td></tr>}
               {error && <tr><td colSpan={5} className="text-center py-8 text-red-500">{error}</td></tr>}
               {!loading && !error && filteredUsers.map((u) => (
-                <tr key={u._id} onClick={() => setSelectedId(u._id)} className={`border-t dark:border-gray-700 cursor-pointer ${selectedId === u._id ? "bg-blue-50/70 dark:bg-blue-900/20" : ""}`}>
+                <tr
+                  key={u._id}
+                  onClick={() => {
+                    setSelectedId(u._id);
+                    if (isCompactLayout) setMobileFormOpen(true);
+                  }}
+                  className={`border-t dark:border-gray-700 cursor-pointer ${selectedId === u._id ? "bg-blue-50/70 dark:bg-blue-900/20" : ""}`}
+                >
                   <td className="px-4 py-3 font-medium">{u.hovaten}</td>
                   <td className="px-4 py-3">{u.giangVienInfo?.TrinhDoHocVan || "-"}</td>
                   <td className="px-4 py-3">{u.giangVienInfo?.chuyenmon || "-"}</td>
                   <td className="px-4 py-3"><span className={`px-2 py-1 rounded-full text-xs ${u.trangThaiHoatDong ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>{u.trangThaiHoatDong ? "Đang dạy" : "Đã khóa"}</span></td>
                   <td className="px-4 py-3"><div className="flex justify-end gap-2">
-                    <button onClick={(e) => { e.stopPropagation(); setSelectedId(u._id); }} className="text-amber-500"><PencilIcon /></button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openEditModal(u._id);
+                      }}
+                      className="text-amber-500"
+                    >
+                      <PencilIcon />
+                    </button>
                     <button onClick={(e) => { e.stopPropagation(); setDeletingUserId(u._id); setIsConfirmModalOpen(true); }} className="text-gray-400"><TrashIcon /></button>
                   </div></td>
                 </tr>
@@ -254,7 +307,7 @@ export default function TeacherAccountsPage() {
           </table>
         </section>
 
-        <section className="xl:col-span-4 bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700 p-4">
+        <section className="hidden xl:block xl:col-span-4 bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700 p-4">
           <div className="flex gap-6 border-b dark:border-gray-700 mb-4">
             <button className="pb-2 text-blue-600 border-b-2 border-blue-600 text-sm font-medium">Thông tin cá nhân</button>
             <button type="button" className="pb-2 text-sm text-gray-500">Lịch dạy</button>
@@ -304,6 +357,74 @@ export default function TeacherAccountsPage() {
           </form>
         </section>
       </div>
+
+      {mobileFormOpen ? (
+        <div className="fixed inset-0 z-[70] bg-black/40 flex items-center justify-center px-4">
+          <div className="w-full max-w-xl bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
+            <div className="px-6 py-4 border-b dark:border-gray-700 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-base font-bold text-gray-900 dark:text-gray-100">
+                  {isCreateMode ? "Thêm giảng viên" : "Chi tiết giảng viên"}
+                </div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">Điền thông tin rồi bấm lưu</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMobileFormOpen(false)}
+                className="px-3 py-2 rounded-md text-sm font-medium bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 dark:bg-gray-900 dark:border-gray-700 dark:hover:bg-gray-700 dark:text-gray-200"
+              >
+                Đóng
+              </button>
+            </div>
+            <div className="px-6 py-5">
+              <form onSubmit={handleSave} className="space-y-3">
+                <InputField label="Họ và tên" name="hovaten" value={formData.hovaten} onChange={handleFieldChange} />
+                <InputField
+                  label="Email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleFieldChange}
+                  disabled={!isCreateMode}
+                />
+                <InputField label="Số điện thoại" name="soDienThoai" value={formData.soDienThoai} onChange={handleFieldChange} />
+                <InputField label="Ngày sinh" name="ngaysinh" type="date" value={formData.ngaysinh} onChange={handleFieldChange} />
+                <InputField
+                  label="Địa chỉ thường trú"
+                  name="diachi"
+                  value={formData.diachi}
+                  onChange={handleFieldChange}
+                />
+                <InputField
+                  label="Trình độ cao nhất"
+                  name="TrinhDoHocVan"
+                  value={formData.TrinhDoHocVan}
+                  onChange={handleFieldChange}
+                />
+                <InputField
+                  label="Kinh nghiệm (năm)"
+                  name="kinhnghiem"
+                  type="number"
+                  value={formData.kinhnghiem}
+                  onChange={handleFieldChange}
+                />
+                <InputField label="Chuyên môn chính" name="chuyenmon" value={formData.chuyenmon} onChange={handleFieldChange} />
+                <InputField
+                  label={isCreateMode ? "Mật khẩu" : "Mật khẩu mới (tùy chọn)"}
+                  name="password"
+                  type="password"
+                  value={formData.password}
+                  onChange={handleFieldChange}
+                />
+                <PasswordStrength password={formData.password} showWhenEmpty={isCreateMode} />
+                {formError && <p className="text-sm text-red-500">{formError}</p>}
+                <button className="w-full py-2 bg-green-600 text-white rounded-lg">
+                  {isCreateMode ? "Tạo mới" : "Cập nhật thông tin"}
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      ) : null}
       <ConfirmModal
         isOpen={isConfirmModalOpen}
         title="Khóa tài khoản"

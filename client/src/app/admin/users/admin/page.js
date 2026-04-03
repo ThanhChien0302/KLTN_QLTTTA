@@ -45,6 +45,22 @@ export default function AdminAccountsPage() {
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [deletingUserId, setDeletingUserId] = useState(null);
 
+  const [isCompactLayout, setIsCompactLayout] = useState(false);
+  const [mobileFormOpen, setMobileFormOpen] = useState(false);
+
+  useEffect(() => {
+    // xl breakpoint = >= 1280px; dưới đó coi là mobile/table
+    const mq = window.matchMedia("(max-width: 1279px)");
+    const update = () => setIsCompactLayout(Boolean(mq.matches));
+    update();
+    if (mq.addEventListener) mq.addEventListener("change", update);
+    else mq.addListener(update);
+    return () => {
+      if (mq.removeEventListener) mq.removeEventListener("change", update);
+      else mq.removeListener(update);
+    };
+  }, []);
+
   const handleFieldChange = (e) => {
     const { name, value } = e?.target || {};
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -102,6 +118,16 @@ export default function AdminAccountsPage() {
     setFormData(emptyForm);
   };
 
+  const openCreateModal = () => {
+    handleCreateNew();
+    setMobileFormOpen(true);
+  };
+
+  const openEditModal = (id) => {
+    setSelectedId(id);
+    if (isCompactLayout) setMobileFormOpen(true);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setFormError("");
@@ -151,10 +177,12 @@ export default function AdminAccountsPage() {
       if (isEdit) {
         setUsers((prev) => prev.map((u) => (u._id === selectedUser._id ? result.data : u)));
         success("Cập nhật thông tin admin thành công.");
+        if (mobileFormOpen) setMobileFormOpen(false);
       } else {
         setUsers((prev) => [result.data, ...prev]);
         setSelectedId(result.data._id);
         success("Tạo tài khoản admin thành công.");
+        if (mobileFormOpen) setMobileFormOpen(false);
       }
     } catch (err) {
       setFormError(err.message);
@@ -194,7 +222,18 @@ export default function AdminAccountsPage() {
         <section className="xl:col-span-8 bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700">
           <div className="p-4 border-b dark:border-gray-700 flex justify-between items-center">
             <h2 className="font-semibold text-lg text-gray-900 dark:text-white">Danh sách Admin</h2>
-            <button onClick={handleCreateNew} className="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm flex items-center gap-1"><PlusIcon /> Thêm</button>
+            <button
+              onClick={handleCreateNew}
+              className="hidden xl:flex px-3 py-2 bg-blue-600 text-white rounded-lg text-sm items-center gap-1"
+            >
+              <PlusIcon /> Thêm
+            </button>
+            <button
+              onClick={openCreateModal}
+              className="xl:hidden px-3 py-2 bg-blue-600 text-white rounded-lg text-sm flex items-center gap-1"
+            >
+              <PlusIcon /> Thêm Admin
+            </button>
           </div>
           <div className="p-4 flex gap-3">
             <input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Tìm kiếm theo tên hoặc email..." className="flex-1 px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600" />
@@ -213,12 +252,27 @@ export default function AdminAccountsPage() {
               {loading && <tr><td colSpan={4} className="text-center py-8">Đang tải...</td></tr>}
               {error && <tr><td colSpan={4} className="text-center py-8 text-red-500">{error}</td></tr>}
               {!loading && !error && filteredUsers.map((u) => (
-                <tr key={u._id} onClick={() => setSelectedId(u._id)} className={`border-t dark:border-gray-700 cursor-pointer ${selectedId === u._id ? "bg-blue-50/70 dark:bg-blue-900/20" : ""}`}>
+                <tr
+                  key={u._id}
+                  onClick={() => {
+                    setSelectedId(u._id);
+                    if (isCompactLayout) setMobileFormOpen(true);
+                  }}
+                  className={`border-t dark:border-gray-700 cursor-pointer ${selectedId === u._id ? "bg-blue-50/70 dark:bg-blue-900/20" : ""}`}
+                >
                   <td className="px-4 py-3"><div className="font-medium">{u.hovaten}</div></td>
                   <td className="px-4 py-3">{u.email}</td>
                   <td className="px-4 py-3"><span className={`px-2 py-1 rounded-full text-xs ${u.trangThaiHoatDong ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>{u.trangThaiHoatDong ? "Active" : "Locked"}</span></td>
                   <td className="px-4 py-3"><div className="flex justify-end gap-2">
-                    <button onClick={(e) => { e.stopPropagation(); setSelectedId(u._id); }} className="text-amber-500"><PencilIcon /></button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openEditModal(u._id);
+                      }}
+                      className="text-amber-500"
+                    >
+                      <PencilIcon />
+                    </button>
                     <button onClick={(e) => { e.stopPropagation(); setDeletingUserId(u._id); setIsConfirmModalOpen(true); }} className="text-gray-400"><TrashIcon /></button>
                   </div></td>
                 </tr>
@@ -227,7 +281,7 @@ export default function AdminAccountsPage() {
           </table>
         </section>
 
-        <section className="xl:col-span-4 bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700 p-4">
+        <section className="hidden xl:block xl:col-span-4 bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700 p-4">
           <h3 className="text-lg font-semibold mb-4">{isCreateMode ? "Thêm Admin" : "Thông tin Admin"}</h3>
           <form onSubmit={handleSubmit} className="space-y-3">
             <InputField label="Họ tên" name="hovaten" value={formData.hovaten} onChange={handleFieldChange} />
@@ -263,6 +317,64 @@ export default function AdminAccountsPage() {
           </form>
         </section>
       </div>
+
+      {mobileFormOpen ? (
+        <div className="fixed inset-0 z-[70] bg-black/40 flex items-center justify-center px-4">
+          <div className="w-full max-w-xl bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
+            <div className="px-6 py-4 border-b dark:border-gray-700 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-base font-bold text-gray-900 dark:text-gray-100">
+                  {isCreateMode ? "Thêm Admin" : "Thông tin Admin"}
+                </div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">Điền thông tin rồi bấm lưu</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMobileFormOpen(false)}
+                className="px-3 py-2 rounded-md text-sm font-medium bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 dark:bg-gray-900 dark:border-gray-700 dark:hover:bg-gray-700 dark:text-gray-200"
+              >
+                Đóng
+              </button>
+            </div>
+            <div className="px-6 py-5">
+              <form onSubmit={handleSubmit} className="space-y-3">
+                <InputField label="Họ tên" name="hovaten" value={formData.hovaten} onChange={handleFieldChange} />
+                <InputField
+                  label="Email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleFieldChange}
+                  disabled={!isCreateMode}
+                />
+                <InputField
+                  label="Số điện thoại"
+                  name="soDienThoai"
+                  value={formData.soDienThoai}
+                  onChange={handleFieldChange}
+                />
+                <InputField
+                  label="Địa chỉ"
+                  name="diachi"
+                  value={formData.diachi}
+                  onChange={handleFieldChange}
+                />
+                <InputField
+                  label={isCreateMode ? "Mật khẩu" : "Mật khẩu mới (tùy chọn)"}
+                  name="password"
+                  type="password"
+                  value={formData.password}
+                  onChange={handleFieldChange}
+                />
+                <PasswordStrength password={formData.password} showWhenEmpty={isCreateMode} />
+                {formError && <p className="text-sm text-red-500">{formError}</p>}
+                <button className="w-full py-2 bg-blue-600 text-white rounded-lg">
+                  {isCreateMode ? "Tạo mới" : "Lưu"}
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      ) : null}
       <ConfirmModal
         isOpen={isConfirmModalOpen}
         title="Khóa tài khoản"

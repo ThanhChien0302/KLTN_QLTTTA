@@ -6,6 +6,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "../contexts/AuthContext";
 import ConfirmModal from "../components/ConfirmModal";
 import { ThemeProvider } from "../contexts/ThemeContext";
+import { FiBell, FiMenu, FiX } from "react-icons/fi";
 
 export default function AdminLayout({ children }) {
   const { user, loading, isAuthenticated, isAdmin, logout } = useAuth();
@@ -15,6 +16,8 @@ export default function AdminLayout({ children }) {
   // State quản lý Dark Mode
   const [darkMode, setDarkMode] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [menuCollapsed, setMenuCollapsed] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem("theme");
@@ -41,6 +44,11 @@ export default function AdminLayout({ children }) {
     }
   }, [loading, isAuthenticated, isAdmin, router]);
 
+  useEffect(() => {
+    // Khi đổi route thì đóng mobile drawer
+    setMobileMenuOpen(false);
+  }, [pathname]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
@@ -52,7 +60,7 @@ export default function AdminLayout({ children }) {
   if (!isAuthenticated || !isAdmin) return null;
 
   // Component link sidebar để tái sử dụng
-  const SidebarLink = ({ href, icon, text }) => {
+  const SidebarLink = ({ href, icon, text, collapsed, onNavigate }) => {
     const searchParams = useSearchParams();
 
     const checkIsActive = () => {
@@ -75,6 +83,7 @@ export default function AdminLayout({ children }) {
     return (
       <Link
         href={href}
+        onClick={() => onNavigate?.()}
         className={`flex items-center w-full text-left px-4 py-3 rounded-lg transition-colors duration-200 mb-1 ${
           isActive
             ? "bg-blue-600 text-white shadow-md"
@@ -83,14 +92,28 @@ export default function AdminLayout({ children }) {
               : "text-gray-600 hover:bg-gray-100 hover:text-gray-800"
         }`}
       >
-        {icon}
-        <span className="ml-3 font-medium">{text}</span>
+        <span
+          className={`flex-shrink-0 transform origin-left transition-transform duration-200 ${
+            collapsed
+              ? "scale-200 group-hover:scale-100"
+              : "scale-100"
+          }`}
+        >
+          {icon}
+        </span>
+        <span
+          className={`ml-3 font-medium whitespace-nowrap transition-opacity duration-200 ${
+            collapsed ? "hidden group-hover:inline" : "inline"
+          }`}
+        >
+          {text}
+        </span>
       </Link>
     );
   };
 
   // Component cho menu có thể thu gọn
-  const CollapsibleMenu = ({ icon, text, children, baseRoute }) => {
+  const CollapsibleMenu = ({ icon, text, children, baseRoute, collapsed }) => {
     const isActive = pathname.startsWith(baseRoute);
     const [isOpen, setIsOpen] = useState(isActive);
 
@@ -112,14 +135,28 @@ export default function AdminLayout({ children }) {
                 : "text-gray-600 hover:bg-gray-100"
           }`}
         >
-          {icon}
-          <span className="ml-3 font-medium">{text}</span>
-          <IconChevronDown isOpen={isOpen} />
+          <span
+            className={`flex-shrink-0 transform origin-left transition-transform duration-200 ${
+              collapsed ? "scale-200 group-hover:scale-100" : "scale-100"
+            }`}
+          >
+            {icon}
+          </span>
+          <span
+            className={`ml-3 font-medium whitespace-nowrap transition-opacity duration-200 ${
+              collapsed ? "hidden group-hover:inline" : "inline"
+            }`}
+          >
+            {text}
+          </span>
+          <span className={`${collapsed ? "hidden group-hover:inline-flex" : "inline-flex"} ml-auto`}>
+            <IconChevronDown isOpen={isOpen} />
+          </span>
         </button>
         <div
           className={`overflow-hidden transition-all duration-300 ease-in-out ${
-            isOpen ? "max-h-screen" : "max-h-0"
-          }`}
+            collapsed ? "hidden group-hover:block" : ""
+          } ${isOpen ? "max-h-screen" : "max-h-0"}`}
         >
           <div className="pl-12 pr-2 pt-1 pb-1 space-y-1">{children}</div>
         </div>
@@ -127,35 +164,129 @@ export default function AdminLayout({ children }) {
     );
   };
 
-  return (
-    <div className={`flex h-screen transition-colors duration-300 ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
-      {/* Sidebar cố định */}
-      <aside className={`w-64 shadow-xl flex-shrink-0 flex flex-col z-10 transition-colors duration-300 ${darkMode ? "bg-gray-800 border-r border-gray-700" : "bg-white"}`}>
+  const SidebarBody = ({ collapsed, onNavigate }) => {
+    return (
+      <>
         <div className="h-16 flex items-center justify-center border-b border-gray-200">
-          <h1 className="text-2xl font-extrabold text-blue-600 tracking-wider">EMC ADMIN</h1>
+          <h1
+            className={`text-2xl font-extrabold text-blue-600 tracking-wider transition-opacity duration-200 ${
+              collapsed ? "hidden group-hover:block" : "block"
+            }`}
+          >
+            EMC ADMIN
+          </h1>
         </div>
-        
+
         <nav className="flex-1 px-4 py-6 overflow-y-auto custom-scrollbar">
-          <p className="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Quản lý chung</p>
-          <SidebarLink href="/admin" text="Tổng quan" icon={<IconHome />} />
-          
-          <p className="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider mt-6 mb-2">Hệ thống</p>
-          <SidebarLink href="/admin/facilities" text="Cơ sở" icon={<IconBuilding />} />
-          
-          <p className="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider mt-6 mb-2">Nhân sự & Học viên</p>
-          <CollapsibleMenu text="Người dùng" icon={<IconUsers />} baseRoute="/admin/users">
-            <SidebarLink href="/admin/users/admin" text="Quản trị viên"  />
-            <SidebarLink href="/admin/users/teacher" text="Giảng viên"  />
-            <SidebarLink href="/admin/users/student" text="Học viên"  />
+          <p
+            className={`px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 ${
+              collapsed ? "hidden group-hover:block" : ""
+            }`}
+          >
+            Quản lý chung
+          </p>
+          <SidebarLink
+            href="/admin"
+            text="Tổng quan"
+            icon={<IconHome />}
+            collapsed={collapsed}
+            onNavigate={onNavigate}
+          />
+
+          <p
+            className={`px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider mt-6 mb-2 ${
+              collapsed ? "hidden group-hover:block" : ""
+            }`}
+          >
+            Hệ thống
+          </p>
+          <SidebarLink
+            href="/admin/facilities"
+            text="Cơ sở"
+            icon={<IconBuilding />}
+            collapsed={collapsed}
+            onNavigate={onNavigate}
+          />
+
+          <p
+            className={`px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider mt-6 mb-2 ${
+              collapsed ? "hidden group-hover:block" : ""
+            }`}
+          >
+            Nhân sự & Học viên
+          </p>
+          <CollapsibleMenu
+            text="Người dùng"
+            icon={<IconUsers />}
+            baseRoute="/admin/users"
+            collapsed={collapsed}
+          >
+            <SidebarLink
+              href="/admin/users/admin"
+              text="Quản trị viên"
+              icon={<IconDot />}
+              collapsed={collapsed}
+              onNavigate={onNavigate}
+            />
+            <SidebarLink
+              href="/admin/users/teacher"
+              text="Giảng viên"
+              icon={<IconDot />}
+              collapsed={collapsed}
+              onNavigate={onNavigate}
+            />
+            <SidebarLink
+              href="/admin/users/student"
+              text="Học viên"
+              icon={<IconDot />}
+              collapsed={collapsed}
+              onNavigate={onNavigate}
+            />
           </CollapsibleMenu>
-          
-          <p className="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider mt-6 mb-2">Đào tạo</p>
-          <SidebarLink href="/admin/course-types" text="Loại khóa học" icon={<IconCategory />} />
-          <SidebarLink href="/admin/courses" text="Khóa học" icon={<IconBook />} />
-          
-          <p className="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider mt-6 mb-2">Thống kê & Tin tức</p>
-          <SidebarLink href="/admin/reports" text="Báo cáo thống kê" icon={<IconChart />} />
-          <SidebarLink href="/admin/announcements" text="Thông báo" icon={<IconBell />} />
+
+          <p
+            className={`px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider mt-6 mb-2 ${
+              collapsed ? "hidden group-hover:block" : ""
+            }`}
+          >
+            Đào tạo
+          </p>
+          <SidebarLink
+            href="/admin/course-types"
+            text="Loại khóa học"
+            icon={<IconCategory />}
+            collapsed={collapsed}
+            onNavigate={onNavigate}
+          />
+          <SidebarLink
+            href="/admin/courses"
+            text="Khóa học"
+            icon={<IconBook />}
+            collapsed={collapsed}
+            onNavigate={onNavigate}
+          />
+
+          <p
+            className={`px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider mt-6 mb-2 ${
+              collapsed ? "hidden group-hover:block" : ""
+            }`}
+          >
+            Thống kê & Tin tức
+          </p>
+          <SidebarLink
+            href="/admin/reports"
+            text="Báo cáo thống kê"
+            icon={<IconChart />}
+            collapsed={collapsed}
+            onNavigate={onNavigate}
+          />
+          <SidebarLink
+            href="/admin/announcements"
+            text="Thông báo"
+            icon={<IconBell />}
+            collapsed={collapsed}
+            onNavigate={onNavigate}
+          />
         </nav>
 
         <div className={`p-4 border-t ${darkMode ? "border-gray-700 bg-gray-800" : "border-gray-200 bg-gray-50"}`}>
@@ -164,22 +295,102 @@ export default function AdminLayout({ children }) {
             className="flex items-center w-full px-4 py-2.5 rounded-lg text-red-600 hover:bg-red-50 transition-colors"
           >
             <IconLogout />
-            <span className="ml-3 font-medium">Đăng xuất</span>
+            <span
+              className={`ml-3 font-medium whitespace-nowrap transition-opacity duration-200 ${
+                collapsed ? "hidden group-hover:inline" : "inline"
+              }`}
+            >
+              Đăng xuất
+            </span>
           </button>
         </div>
+      </>
+    );
+  };
+
+  return (
+    <div className={`flex h-screen transition-colors duration-300 ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
+      {/* Mobile drawer */}
+      {mobileMenuOpen ? (
+        <div className="fixed inset-0 z-[60] lg:hidden">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setMobileMenuOpen(false)} />
+          <aside
+            className={`relative w-64 h-full shadow-xl flex-shrink-0 flex flex-col transition-colors duration-300 ${
+              darkMode ? "bg-gray-800 border-r border-gray-700" : "bg-white"
+            }`}
+          >
+            <SidebarBody collapsed={false} onNavigate={() => setMobileMenuOpen(false)} />
+          </aside>
+        </div>
+      ) : null}
+
+      {/* Sidebar desktop */}
+      <aside
+        className={`hidden lg:flex shadow-xl flex-shrink-0 flex flex-col z-10 transition-colors duration-300 group ${
+          darkMode ? "bg-gray-800 border-r border-gray-700" : "bg-white"
+        } ${menuCollapsed ? "w-20 hover:w-64" : "w-64"} transition-[width] duration-300`}
+      >
+        <SidebarBody collapsed={menuCollapsed} />
       </aside>
 
       {/* Khu vực nội dung chính */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <ThemeProvider value={{ darkMode }}>
           {/* Header chung */}
-          <header className={`shadow-sm h-16 flex justify-between items-center px-8 z-0 transition-colors duration-300 ${darkMode ? "bg-gray-800 border-b border-gray-700" : "bg-white"}`}>
-            <h2 className={`text-xl font-semibold ${darkMode ? "text-gray-100" : "text-gray-800"}`}>Hệ Thống Quản Lý Trung Tâm</h2>
+          <header
+            className={`shadow-sm h-16 flex justify-between items-center px-4 sm:px-6 lg:px-8 z-0 transition-colors duration-300 ${
+              darkMode ? "bg-gray-800 border-b border-gray-700" : "bg-white"
+            }`}
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <button
+                type="button"
+                className="lg:hidden p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                onClick={() => setMobileMenuOpen(true)}
+                aria-label="Mở menu"
+              >
+                <FiMenu size={24} />
+              </button>
+
+              <button
+                type="button"
+                className="hidden lg:inline-flex p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                onClick={() => setMenuCollapsed((v) => !v)}
+                aria-label="Thu/gọn menu"
+              >
+                {menuCollapsed ? <FiMenu size={22} /> : <FiX size={22} />}
+              </button>
+
+              <h2
+                className={`text-xl font-semibold truncate ${
+                  darkMode ? "text-gray-100" : "text-gray-800"
+                } hidden sm:block`}
+              >
+                Hệ Thống Quản Lý Trung Tâm
+              </h2>
+              <h2
+                className={`text-lg font-semibold truncate ${
+                  darkMode ? "text-gray-100" : "text-gray-800"
+                } sm:hidden`}
+              >
+                Admin
+              </h2>
+            </div>
+
             <div className="flex items-center space-x-4">
               {/* Nút đổi Theme */}
               <button onClick={toggleTheme} className={`p-2 rounded-full transition-colors ${darkMode ? "hover:bg-gray-700 text-yellow-400" : "hover:bg-gray-100 text-gray-600"}`} title="Đổi giao diện">
                 {darkMode ? <IconSun /> : <IconMoon />}
               </button>
+
+              {/* Mobile notification icon */}
+              <Link
+                href="/admin/announcements"
+                className="lg:hidden p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                aria-label="Thông báo"
+              >
+                <FiBell size={22} />
+              </Link>
 
               <div className="text-right">
                 <p className={`text-sm font-medium ${darkMode ? "text-gray-200" : "text-gray-900"}`}>{user?.FullName || user?.name}</p>
@@ -192,7 +403,7 @@ export default function AdminLayout({ children }) {
           </header>
 
           {/* Nội dung thay đổi (Children) */}
-          <main className="flex-1 overflow-y-auto p-8">
+          <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
             {children}
           </main>
 
@@ -225,3 +436,5 @@ const IconChevronDown = ({ isOpen }) => <svg xmlns="http://www.w3.org/2000/svg" 
 const IconDot = () => <svg viewBox="0 0 16 16" className="h-5 w-5" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="8" r="3"/></svg>;
 const IconSun = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>;
 const IconMoon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>;
+
+// (menu/header icons) used from react-icons/fi
