@@ -7,17 +7,68 @@ import { formatDateDdMmYyyy, toDateInputValue } from "../../../lib/dateFormat";
 
 export default function Profile() {
   const { user } = useAuth();
+  // State thông tin cá nhân
   const [formData, setFormData] = useState({
-    name: '',
     email: '',
-    FullName: '',
     Numberphone: '',
+    FullName: '',
     dateOfBirth: '',
     address: '',
+  });
+  // State mật khẩu
+  const [passwordData, setPasswordData] = useState({
     currentPassword: '',
     newPassword: '',
     confirmPassword: ''
   });
+  // State quản lý ẩn/hiện mật khẩu
+  const [showPassword, setShowPassword] = useState({
+    current: false,
+    new: false,
+    confirm: false
+  });
+  const [errors, setErrors] = useState({
+    phone: ""
+  });
+  // Regex kiểm tra mật khẩu: >= 6 ký tự, 1 chữ HOA, 1 ký tự đặc biệt
+  const passwordRegex = /^(?=.*[A-Z])(?=.*[!@#$%^&*])(?=.{6,})/;
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) return; // Dừng nếu chưa đăng nhập
+
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+        const res = await fetch(`${apiUrl}/student/profile`, {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
+
+        if (!res.ok) throw new Error("Không thể lấy dữ liệu profile");
+
+        const data = await res.json();
+        const user = data.userId;
+
+        // Cập nhật đúng các key trong state formData của bạn
+        setFormData({
+          email: user?.email || '',
+          Numberphone: user?.soDienThoai || '',
+          FullName: user?.hovaten || '',
+          // Slice để lấy định dạng YYYY-MM-DD cho input date
+          dateOfBirth: user?.ngaysinh ? user.ngaysinh.slice(0, 10) : '',
+          address: user?.diachi || '',
+        });
+
+      } catch (err) {
+        console.error("Lỗi load profile:", err);
+      }
+    };
+
+    fetchProfile();
+  }, []);
+
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState('personal');
   const [message, setMessage] = useState('');
@@ -38,6 +89,7 @@ export default function Profile() {
     }
   }, [user]);
 
+
   const handleChange = (e) => {
     setFormData({
       ...formData,
@@ -49,7 +101,8 @@ export default function Profile() {
     e.preventDefault();
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:3001/users/profile', {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+      const response = await fetch(`${apiUrl}/student/profile`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -63,9 +116,7 @@ export default function Profile() {
           address: formData.address
         })
       });
-
       const data = await response.json();
-
       if (data.success) {
         setMessage('Thông tin cá nhân đã được cập nhật thành công!');
         setIsEditing(false);
@@ -87,7 +138,8 @@ export default function Profile() {
     }
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:3001/users/change-password', {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+      const response = await fetch(`${apiUrl}/student/change-password`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -164,59 +216,74 @@ export default function Profile() {
                 <button
                   type="button"
                   onClick={() => setIsEditing(!isEditing)}
-                  className="px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-blue-600 border border-blue-600 rounded-md hover:text-blue-800 transition-colors"
                 >
                   {isEditing ? 'Hủy' : 'Chỉnh sửa'}
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Tên đăng nhập *
-                  </label>
-                  <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    disabled={!isEditing}
-                    className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${!isEditing ? 'bg-gray-50' : ''
-                      }`}
-                    required
-                  />
-                </div>
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Email
+                    </label>
+                    <input
+                      type="email"
+                      name="email"
+                      value={formData.email}
+                      onChange={handleChange}
+                      disabled={!isEditing}
+                      className={`w-full px-3 py-2 border border-gray-300 text-gray-500 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${!isEditing ? 'bg-gray-50' : ''
+                        }`}
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Email *
-                  </label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    disabled={!isEditing}
-                    className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${!isEditing ? 'bg-gray-50' : ''
-                      }`}
-                    required
-                  />
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Số điện thoại
+                    </label>
+                    <input
+                      type="tel"
+                      name="Numberphone"
+                      value={formData.Numberphone}
+                      onChange={handleChange}
+                      disabled={!isEditing}
+                      className={`w-full px-3 py-2 border border-gray-300 text-gray-500 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${!isEditing ? 'bg-gray-50' : ''
+                        }`}
+                    />
+                  </div>
                 </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Họ và tên
+                    </label>
+                    <input
+                      type="text"
+                      name="FullName"
+                      value={formData.FullName}
+                      onChange={handleChange}
+                      disabled={!isEditing}
+                      className={`w-full px-3 py-2 border border-gray-300 text-gray-500 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${!isEditing ? 'bg-gray-50' : ''
+                        }`}
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Họ và tên đầy đủ *
-                  </label>
-                  <input
-                    type="text"
-                    name="FullName"
-                    value={formData.FullName}
-                    onChange={handleChange}
-                    disabled={!isEditing}
-                    className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${!isEditing ? 'bg-gray-50' : ''
-                      }`}
-                    required
-                  />
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Ngày sinh
+                    </label>
+                    <input
+                      type="text"
+                      name="dateOfBirth"
+                      value={formData.dateOfBirth}
+                      onChange={handleChange}
+                      disabled={!isEditing}
+                      className={`w-full px-3 py-2 border border-gray-300 text-gray-500 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${!isEditing ? 'bg-gray-50' : ''
+                        }`}
+                    />
+                  </div>
                 </div>
 
                 <div>
@@ -247,20 +314,18 @@ export default function Profile() {
                     inputClassName="date-input-field min-w-0 flex-1 px-3 py-2 text-sm outline-none border-0 disabled:bg-gray-50"
                   />
                 </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Địa chỉ
                   </label>
-                  <input
-                    type="text"
+                  <textarea
                     name="address"
                     value={formData.address}
                     onChange={handleChange}
                     disabled={!isEditing}
-                    className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${!isEditing ? 'bg-gray-50' : ''
+                    rows="3"
+                    className={`w-full px-3 py-2 border border-gray-300 text-gray-500 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${!isEditing ? 'bg-gray-50' : ''
                       }`}
-                    placeholder="Nhập địa chỉ của bạn"
                   />
                 </div>
               </div>

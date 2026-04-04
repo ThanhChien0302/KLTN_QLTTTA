@@ -11,6 +11,7 @@ const swaggerSpec = require("./config/swagger");
 
 var indexRouter = require('./routes/index');
 const profileRoutes = require("./routes/teacher/giangvienRoutes");
+const studentRoutes = require('./routes/student/hocvienRoutes');
 
 var app = express();
 
@@ -42,6 +43,7 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 
 app.use("/teacher", profileRoutes);
+app.use("/student", studentRoutes);
 
 // catch 404
 app.use(function (req, res, next) {
