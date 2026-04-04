@@ -21,7 +21,8 @@ function LessonDetailContent() {
                 const courseId = localStorage.getItem("selectedCourseId");
                 
                 // Fetch Lesson Details
-                const lessonRes = await fetch(`${apiUrl}/teacher/lessons/${id}`, {
+                const lessonUrl = courseId ? `${apiUrl}/teacher/lessons/${id}?courseId=${courseId}` : `${apiUrl}/teacher/lessons/${id}`;
+                const lessonRes = await fetch(lessonUrl, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
 
@@ -83,10 +84,25 @@ function LessonDetailContent() {
         );
     }
 
-    // Process Mock Data for UI presentation based on requirements
-    const totalStudents = students.length || 25;
-    // Assume 92% attendance rate for mockup
-    const attendedStudents = Math.floor(totalStudents * 0.92);
+    // Process Real Data 
+    let finalStudents = students;
+    if (lesson && lesson.rollcallMap) {
+        finalStudents = students.map(s => {
+            const status = lesson.rollcallMap[s.id];
+            // "present" or "lated" are considered Present
+            const present = status === "present" || status === "lated";
+            return {
+                ...s,
+                present
+            }
+        });
+    } else {
+        // Fallback or empty if not rolled call yet
+        finalStudents = students.map(s => ({...s, present: false}));
+    }
+
+    const totalStudents = finalStudents.length;
+    const attendedStudents = finalStudents.filter(s => s.present).length;
 
     return (
         <div className="min-h-screen bg-gray-50 p-6 md:p-8">
@@ -102,18 +118,20 @@ function LessonDetailContent() {
                             <p className="flex items-center gap-2">
                                 <span className="text-base grayscale opacity-80">📅</span> 
                                 <strong className="font-semibold w-24">Ngày:</strong> 
-                                {lesson.createdAt ? new Date(lesson.createdAt).toISOString().split('T')[0] : "2024-01-15"}
+                                {lesson.ngayhoc ? new Date(lesson.ngayhoc).toISOString().split('T')[0] : (lesson.createdAt ? new Date(lesson.createdAt).toISOString().split('T')[0] : "Chưa xác định")}
                             </p>
                             <p className="flex items-center gap-2">
                                 <span className="text-base grayscale opacity-80">⏰</span> 
                                 <strong className="font-semibold w-24">Thời gian:</strong> 
-                                09:00 - 10:30
+                                {lesson.giobatdau && lesson.gioketthuc ? 
+                                    `${new Date(lesson.giobatdau).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} - ${new Date(lesson.gioketthuc).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}` 
+                                    : "Chưa phân bổ"}
                             </p>
                             <p className="flex items-start gap-2">
                                 <span className="text-base grayscale opacity-80 mt-0.5">📝</span> 
                                 <span className="flex-1">
                                     <strong className="font-semibold block mb-1">Ghi chú:</strong>
-                                    {lesson.description || "Học viên tham gia tích cực, cần ôn tập thêm về phát âm."}
+                                    {lesson.description || "Không có ghi chú"}
                                 </span>
                             </p>
                         </div>
@@ -123,46 +141,44 @@ function LessonDetailContent() {
                     <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
                         <h2 className="font-bold text-lg mb-4 text-gray-800 tracking-tight">Tài liệu học tập</h2>
                         <div className="space-y-0">
-                            {lesson.file ? (
+                            {lesson.files && lesson.files.length > 0 ? (
+                                lesson.files.map((file, idx) => (
+                                    <div key={idx} className="flex justify-between items-center py-3 border-b border-gray-100 last:border-0 hover:bg-gray-50 transition px-2 -mx-2 rounded-md">
+                                        <span className="text-sm text-gray-600 flex items-center gap-2 truncate">
+                                            <span className="text-gray-400">📄</span> 
+                                            {file.name || file.filename || `Tai-lieu-${idx+1}`}
+                                        </span>
+                                        {file.path ? (
+                                            <a href={`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"}${file.path}`} 
+                                               target="_blank" rel="noopener noreferrer" 
+                                               className="bg-blue-500 text-white px-4 py-1.5 rounded-md text-xs font-medium hover:bg-blue-600 transition-colors shrink-0">
+                                                Tải về
+                                            </a>
+                                        ) : (
+                                            <span className="text-xs text-gray-400 italic">Không có file</span>
+                                        )}
+                                    </div>
+                                ))
+                            ) : lesson.file ? (
                                 <div className="flex justify-between items-center py-3 border-b border-gray-100 last:border-0 hover:bg-gray-50 transition px-2 -mx-2 rounded-md">
                                     <span className="text-sm text-gray-600 flex items-center gap-2 truncate">
                                         <span className="text-gray-400">📄</span> 
-                                        {lesson.file.name || lesson.file.filename || "Tai-lieu-buoi-hoc.pdf"}
+                                        {lesson.file.name || lesson.file.filename || "Tai-lieu-buoi-hoc"}
                                     </span>
-                                    <a href={`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"}${lesson.file.path}`} 
-                                       target="_blank" rel="noopener noreferrer" 
-                                       className="bg-blue-500 text-white px-4 py-1.5 rounded-md text-xs font-medium hover:bg-blue-600 transition-colors shrink-0">
-                                        Tải về
-                                    </a>
+                                    {lesson.file.path ? (
+                                        <a href={`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"}${lesson.file.path}`} 
+                                           target="_blank" rel="noopener noreferrer" 
+                                           className="bg-blue-500 text-white px-4 py-1.5 rounded-md text-xs font-medium hover:bg-blue-600 transition-colors shrink-0">
+                                            Tải về
+                                        </a>
+                                    ) : (
+                                        <span className="text-xs text-gray-400 italic">Không có file</span>
+                                    )}
                                 </div>
                             ) : (
-                                <>
-                                    {/* Mock Documents to strictly match screenshot */}
-                                    <div className="flex justify-between items-center py-3 border-b border-gray-100 hover:bg-gray-50 transition px-2 -mx-2 rounded-md">
-                                        <span className="text-sm text-gray-600 flex items-center gap-2 truncate">
-                                            <span className="text-gray-400">📄</span> Bai-giang-co-ban.pdf
-                                        </span>
-                                        <button className="bg-blue-500 text-white px-4 py-1.5 rounded-md text-xs font-medium hover:bg-blue-600 transition-colors shrink-0">
-                                            Tải về
-                                        </button>
-                                    </div>
-                                    <div className="flex justify-between items-center py-3 border-b border-gray-100 hover:bg-gray-50 transition px-2 -mx-2 rounded-md">
-                                        <span className="text-sm text-gray-600 flex items-center gap-2 truncate">
-                                            <span className="text-gray-400">🎬</span> Video-huong-dan-phat-am.mp4
-                                        </span>
-                                        <button className="bg-blue-500 text-white px-4 py-1.5 rounded-md text-xs font-medium hover:bg-blue-600 transition-colors shrink-0">
-                                            Xem
-                                        </button>
-                                    </div>
-                                    <div className="flex justify-between items-center py-3 border-b border-gray-100 last:border-0 hover:bg-gray-50 transition px-2 -mx-2 rounded-md">
-                                        <span className="text-sm text-gray-600 flex items-center gap-2 truncate">
-                                            <span className="text-gray-400">📝</span> Bai-tap-ve-nha.docx
-                                        </span>
-                                        <button className="bg-blue-500 text-white px-4 py-1.5 rounded-md text-xs font-medium hover:bg-blue-600 transition-colors shrink-0">
-                                            Tải về
-                                        </button>
-                                    </div>
-                                </>
+                                <div className="py-3 text-sm text-gray-500 italic">
+                                    Không có tài liệu đính kèm
+                                </div>
                             )}
                         </div>
                     </div>
@@ -184,14 +200,11 @@ function LessonDetailContent() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {(students.length === 0 ? [
-                                        { id: 1, name: "Nguyễn Văn An", email: "nguyenvana@email.com", present: true },
-                                        { id: 2, name: "Minh Tuấn", email: "tuanminh@email.com", present: false }
-                                    ] : students.map((s, idx) => ({
-                                        // Merge actual fetched students with random mock attendance ratio
-                                        ...s,
-                                        present: idx < attendedStudents 
-                                    }))).map((student) => {
+                                    {finalStudents.length === 0 ? (
+                                        <tr>
+                                            <td colSpan="2" className="py-4 text-center text-gray-500 text-sm">Chưa có học viên nào</td>
+                                        </tr>
+                                    ) : finalStudents.map((student) => {
                                         // Create Monogram Avatar
                                         const names = student.name ? student.name.split(" ") : ["U"];
                                         const initials = (names[0][0] + (names.length > 1 ? names[names.length-1][0] : "")).toUpperCase();

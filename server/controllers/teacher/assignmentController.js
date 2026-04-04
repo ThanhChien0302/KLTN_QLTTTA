@@ -66,11 +66,12 @@ exports.createAssignment = async (req, res) => {
 
     let fileId = null;
 
-    // Nếu có file upload
     if (req.file) {
       // Lưu thông tin file vào bảng File
+      const originalName = Buffer.from(req.file.originalname, 'latin1').toString('utf8');
       const newFile = await FileModel.create({
-        url: req.file.path, // Sử dụng đường dẫn local từ multer
+        url: "/uploads/" + req.file.filename,
+        originalName: originalName,
         type: req.file.mimetype,
         size: req.file.size
       });
@@ -154,8 +155,10 @@ exports.updateAssignment = async (req, res) => {
 
     if (req.file) {
       // Có upload file mới -> tạo record File mới (hoặc update existing File)
+      const originalName = Buffer.from(req.file.originalname, 'latin1').toString('utf8');
       const newFile = await FileModel.create({
-        url: req.file.path,
+        url: "/uploads/" + req.file.filename,
+        originalName: originalName,
         type: req.file.mimetype,
         size: req.file.size
       });
@@ -285,5 +288,107 @@ exports.deleteAssignment = async (req, res) => {
       success: false,
       message: "Lỗi server khi xóa bài tập."
     });
+  }
+};
+
+// Lấy chi tiết nộp bài
+exports.getSubmissionById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: "Submission ID không hợp lệ." });
+    }
+
+    const submission = await NopBai.findById(id)
+      .populate("filenop")
+      .populate("filedapan")
+      .populate("baitapID")
+      .populate({
+        path: "dangkykhoahocID",
+        populate: {
+          path: "hocvienId",
+          populate: {
+            path: "userId",
+            select: "hovaten email"
+          }
+        }
+      });
+
+    if (!submission) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy bài nộp." });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: submission
+    });
+
+  } catch (error) {
+    console.error("Lỗi lấy chi tiết nộp bài:", error);
+    res.status(500).json({ success: false, message: "Lỗi server." });
+  }
+};
+
+// Chấm điểm bài nộp
+exports.gradeSubmission = async (req, res) => {
+  try {
+    const { id } = req.params;
+    let { diem, nhanxet, removeFiles } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: "Submission ID không hợp lệ." });
+    }
+
+    const submission = await NopBai.findById(id);
+
+    if (!submission) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy bài nộp." });
+    }
+
+    if (!Array.isArray(submission.filedapan)) {
+      submission.filedapan = submission.filedapan ? [submission.filedapan] : [];
+    }
+
+    // Xử lý các file bị xóa
+    if (removeFiles) {
+      if (!Array.isArray(removeFiles)) removeFiles = [removeFiles];
+      for (const fileId of removeFiles) {
+        if (mongoose.Types.ObjectId.isValid(fileId)) {
+          await FileModel.findByIdAndDelete(fileId);
+          submission.filedapan = submission.filedapan.filter(fid => fid && fid.toString() !== fileId.toString());
+        }
+      }
+    }
+
+    if (req.files && req.files.length > 0) {
+      // Có upload file đáp án
+      for (const f of req.files) {
+        const originalName = Buffer.from(f.originalname, 'latin1').toString('utf8');
+        const newFile = await FileModel.create({
+          url: "/uploads/" + f.filename,
+          originalName: originalName,
+          type: f.mimetype,
+          size: f.size
+        });
+        submission.filedapan.push(newFile._id);
+      }
+    }
+
+    submission.diem = Number(diem);
+    submission.nhanxet = nhanxet;
+    submission.trangthai = "đã chấm";
+
+    await submission.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Chấm điểm thành công!",
+      data: submission
+    });
+
+  } catch (error) {
+    console.error("Lỗi chấm điểm:", error);
+    res.status(500).json({ success: false, message: "Lỗi server khi chấm điểm: " + error.message, errorStack: error.stack });
   }
 };

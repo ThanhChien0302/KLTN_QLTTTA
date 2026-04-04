@@ -279,7 +279,7 @@ export default function Assignments() {
                     >
                       Xóa
                     </button>
-                    <Link href={`/teacher/courses/grade-ass?id=${assignment.id}`}>
+                    <Link href={`/teacher/courses/detail-ass?id=${assignment.id}`}>
                       <button className="text-green-600 hover:text-green-900 text-sm font-medium">
                         Chấm điểm
                       </button>

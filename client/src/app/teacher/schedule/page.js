@@ -6,9 +6,19 @@ import { useState, useEffect } from "react";
 export default function Schedule() {
 
   const [view, setView] = useState("week");
+  const [currentDate, setCurrentDate] = useState(new Date());
   const [scheduleData, setScheduleData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNow(new Date());
+    }, 10000); // Cập nhật thời gian mỗi 10 giây để kiểm tra khoảng mở nút
+
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     const fetchSchedule = async () => {
@@ -17,8 +27,11 @@ export default function Schedule() {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
         const response = await fetch(`${apiUrl}/teacher/schedule`, {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`
-          }
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            "Cache-Control": "no-cache",
+            "Pragma": "no-cache"
+          },
+          cache: "no-store"
         });
 
         if (!response.ok) {
@@ -54,7 +67,8 @@ export default function Schedule() {
             classroom: lesson.classroom,
             branch: lesson.branch,
             students: lesson.students,
-            status: lesson.status
+            status: lesson.status,
+            rawStartTime: lesson.rawStartTime
           });
 
           return acc;
@@ -85,9 +99,51 @@ export default function Schedule() {
     return new Date(y, m - 1, d);
   };
 
+  // 👉 Di chuyển lịch
+  const handlePrev = () => {
+    const newDate = new Date(currentDate);
+    if (view === "day") {
+      newDate.setDate(newDate.getDate() - 1);
+    } else if (view === "week") {
+      newDate.setDate(newDate.getDate() - 7);
+    } else if (view === "month") {
+      newDate.setMonth(newDate.getMonth() - 1);
+    }
+    setCurrentDate(newDate);
+  };
+
+  const handleNext = () => {
+    const newDate = new Date(currentDate);
+    if (view === "day") {
+      newDate.setDate(newDate.getDate() + 1);
+    } else if (view === "week") {
+      newDate.setDate(newDate.getDate() + 7);
+    } else if (view === "month") {
+      newDate.setMonth(newDate.getMonth() + 1);
+    }
+    setCurrentDate(newDate);
+  };
+
+  const getDisplayDateRange = () => {
+    if (view === "day") {
+      return `${currentDate.getDate().toString().padStart(2, '0')}/${(currentDate.getMonth() + 1).toString().padStart(2, '0')}/${currentDate.getFullYear()}`;
+    }
+    if (view === "week") {
+      const firstDay = new Date(currentDate);
+      firstDay.setDate(currentDate.getDate() - currentDate.getDay() + 1); // thứ 2
+      const lastDay = new Date(firstDay);
+      lastDay.setDate(firstDay.getDate() + 6);
+      return `${firstDay.getDate().toString().padStart(2, '0')}/${(firstDay.getMonth() + 1).toString().padStart(2, '0')} - ${lastDay.getDate().toString().padStart(2, '0')}/${(lastDay.getMonth() + 1).toString().padStart(2, '0')}/${lastDay.getFullYear()}`;
+    }
+    if (view === "month") {
+      return `Tháng ${currentDate.getMonth() + 1}/${currentDate.getFullYear()}`;
+    }
+    return "";
+  };
+
   // 👉 Lọc dữ liệu theo view
   const getFilteredSchedule = () => {
-    const now = new Date();
+    const now = currentDate;
 
     // ===== DAY =====
     if (view === "day") {
@@ -194,7 +250,7 @@ export default function Schedule() {
               onClick={() => setView(v)}
               className={`px-4 py-2 rounded-lg text-sm font-semibold transition
                 ${view === v
-                  ? "bg-blue-600 text-white"
+                  ? "bg-green-600 text-white"
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                 }`}
             >
@@ -209,10 +265,24 @@ export default function Schedule() {
       {/* CONTENT */}
       <div className="bg-white rounded-lg shadow">
 
-        <div className="p-4 border-b font-semibold">
-          {view === "day" && "Lịch hôm nay"}
-          {view === "week" && "Lịch tuần này"}
-          {view === "month" && "Lịch tháng này"}
+        <div className="p-4 border-b font-semibold flex items-center justify-between bg-gray-50 rounded-t-lg">
+          <div>
+            {view === "day" && "Lịch theo ngày"}
+            {view === "week" && "Lịch theo tuần"}
+            {view === "month" && "Lịch theo tháng"}
+          </div>
+          <div className="flex items-center gap-3">
+            <button onClick={handlePrev} className="p-1.5 bg-white border shadow-sm rounded hover:bg-blue-300 transition" title="Lùi lại">
+              <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
+            </button>
+            <span className="text-sm text-gray-700 min-w-[160px] text-center font-medium bg-white py-1.5 px-3 border shadow-sm rounded">
+              {getDisplayDateRange()}
+            </span>
+            <button onClick={handleNext} className="p-1.5 bg-white border shadow-sm rounded hover:bg-blue-300 transition" title="Chuyển tiếp">
+              <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
+            </button>
+
+          </div>
         </div>
 
         <div className="divide-y">
@@ -282,11 +352,39 @@ export default function Schedule() {
                             {getStatusText(c.status)}
                           </span>
                         </div>
-                        <Link href="/teacher/schedule/rollcall">
-                          <button className="text-green-600 text-sm mt-2 hover:underline">
-                            Điểm danh
-                          </button>
-                        </Link>
+                        {(() => {
+                          const [d, m, y] = day.date.split("/");
+                          const startClock = c.time.split("-")[0].trim();
+                          const [hh, mm] = startClock.split(":");
+                          const startTime = new Date(y, m - 1, d, hh, mm);
+                          
+                          const diffMinutes = (now - startTime) / (1000 * 60);
+                          const isRollcallActive = diffMinutes >= -5 && diffMinutes <= 5;
+                          
+                          if (isRollcallActive) {
+                            return (
+                              <Link href={`/teacher/schedule/rollcall?lessonId=${c.id}`}>
+                                <button className="text-green-600 font-medium text-sm mt-3 hover:underline">
+                                  Điểm danh
+                                </button>
+                              </Link>
+                            );
+                          } else if (diffMinutes > 5) {
+                            return (
+                              <Link href={`/teacher/schedule/rollcall?lessonId=${c.id}&viewMode=true`}>
+                                <button className="text-blue-600 font-medium text-sm mt-3 hover:underline">
+                                  Xem điểm danh
+                                </button>
+                              </Link>
+                            );
+                          } else {
+                            return (
+                              <button disabled className="text-gray-400 font-medium text-sm mt-3 cursor-not-allowed">
+                                Điểm danh (Chưa đến giờ)
+                              </button>
+                            );
+                          }
+                        })()}
 
                       </div>
                     ))}
@@ -301,7 +399,7 @@ export default function Schedule() {
             ))
           ) : (
             <div className="p-10 text-center text-gray-400">
-              Không có dữ liệu phù hợp
+              Không có lịch dạy
             </div>
           )}
         </div>

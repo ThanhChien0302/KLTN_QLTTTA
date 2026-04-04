@@ -32,10 +32,10 @@ const nopBaiSchema = new mongoose.Schema({
     type: Number,
     min: 0
   },
-  filedapan: {
+  filedapan: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'File'
-  }
+  }]
 }, {
   timestamps: true
 });

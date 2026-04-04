@@ -78,8 +78,7 @@ export default function Lessons() {
   }
 
   const totalLessons = lessons.length;
-  // Mock logic since we don't have exact status from API currently
-  const completedLessons = Math.floor(totalLessons * 0.4); 
+  const completedLessons = lessons.filter(l => l.status === "Đã hoàn thành").length; 
   const scheduledLessons = totalLessons - completedLessons;
 
   return (
@@ -107,12 +106,11 @@ export default function Lessons() {
                 <div className="p-8 text-center text-gray-500">Chưa có bài học nào</div>
               ) : (
                 lessons.map((lesson, idx) => {
-                  // Mock details to match the screenshot UI precisely if API misses them
-                  const isCompleted = idx < completedLessons;
-                  const statusText = isCompleted ? "Đã hoàn thành" : "Sắp tới";
-                  const statusBg = isCompleted ? "bg-green-50 text-green-700" : "bg-blue-50 text-blue-700";
-                  const totalStudents = students.length || 25;
-                  const attendedStudents = isCompleted ? Math.floor(totalStudents * 0.9) : 0;
+                  const isCompleted = lesson.status === "Đã hoàn thành";
+                  const statusText = lesson.status || "Sắp tới";
+                  const statusBg = isCompleted ? "bg-green-50 text-green-700" : lesson.status === "Đang diễn ra" ? "bg-yellow-50 text-yellow-700" : "bg-blue-50 text-blue-700";
+                  const totalStudents = lesson.totalStudents || students.length || 0;
+                  const attendedStudents = lesson.attendedStudents || 0;
                   const attendancePct = totalStudents > 0 ? (attendedStudents / totalStudents) * 100 : 0;
 
                   return (
@@ -130,11 +128,13 @@ export default function Lessons() {
                     {/* Date Time Row */}
                     <div className="flex items-center space-x-4 text-sm text-gray-500 mb-4 font-medium">
                         <span className="flex items-center">
-                          📅 {lesson.createdAt ? new Date(lesson.createdAt).toISOString().split('T')[0] : "2024-01-15"}
+                          📅 {lesson.ngayhoc ? new Date(lesson.ngayhoc).toISOString().split('T')[0] : (lesson.createdAt ? new Date(lesson.createdAt).toISOString().split('T')[0] : "Chưa lên lịch")}
                         </span>
-                        <span className="flex items-center">
-                          🕒 09:00 - 10:30 {/* Fallback mock time */}
-                        </span>
+                        {lesson.giobatdau && lesson.gioketthuc && (
+                          <span className="flex items-center">
+                            🕒 {new Date(lesson.giobatdau).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} - {new Date(lesson.gioketthuc).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        )}
                     </div>
 
                     {/* Attendance Progress Row */}
@@ -144,7 +144,7 @@ export default function Lessons() {
                            <span>{attendedStudents}/{totalStudents} học viên</span>
                        </div>
                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div className={`h-2 rounded-full ${isCompleted ? 'bg-green-500' : 'bg-gray-300'}`} style={{width: `${attendancePct}%`}}></div>
+                          <div className={`h-2 rounded-full ${attendancePct === 100 ? 'bg-green-500' : attendancePct > 0 ? 'bg-blue-500' : 'bg-gray-300'}`} style={{width: `${attendancePct}%`}}></div>
                        </div>
                     </div>
 
@@ -152,23 +152,18 @@ export default function Lessons() {
                     <div className="mb-4">
                       <h5 className="text-sm font-bold text-gray-800 mb-2">Tài liệu bài học:</h5>
                       <div className="flex flex-wrap gap-2">
-                         {lesson.file ? (
+                         {lesson.files && lesson.files.length > 0 ? (
+                             lesson.files.map((file, i) => (
+                               <span key={i} className="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
+                                 📄 {file.name || file.filename || "Bài giảng"}
+                               </span>
+                             ))
+                         ) : lesson.file ? (
                              <span className="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
-                               📄 {lesson.file.name || lesson.file.filename || "Bài giảng PDF"}
+                               📄 {lesson.file.name || lesson.file.filename || "Bài giảng"}
                              </span>
                          ) : (
-                             // Mock some attachments exactly like the screenshot request
-                             <>
-                                <span className="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100 cursor-pointer hover:bg-blue-100">
-                                  📄 Bài giảng PDF
-                                </span>
-                                <span className="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-100 cursor-pointer hover:bg-indigo-100">
-                                  📄 Bài tập thực hành
-                                </span>
-                                <span className="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-medium bg-sky-50 text-sky-700 border border-sky-100 cursor-pointer hover:bg-sky-100">
-                                  🎥 Video hướng dẫn
-                                </span>
-                             </>
+                             <span className="text-gray-500 text-sm italic">Không có tài liệu đính kèm</span>
                          )}
                       </div>
                     </div>
@@ -254,8 +249,12 @@ export default function Lessons() {
                      const names = student.name ? student.name.split(" ") : ["U"];
                      const initials = (names[0][0] + (names.length > 1 ? names[names.length-1][0] : "")).toUpperCase();
                      
-                     // Mock attendance 
-                     const attendanceMock = Math.floor(Math.random() * 30) + 70; // 70-99%
+                     // Calculate real attendance based on completed lessons and absent days
+                     let attendancePct = 100;
+                     if (totalLessons > 0 && completedLessons > 0) {
+                         const attended = Math.max(0, completedLessons - (student.absentDays || 0));
+                         attendancePct = Math.round((attended / completedLessons) * 100);
+                     }
 
                      return (
                       <tr key={student.id} className="hover:bg-gray-50 transition-colors">
@@ -280,9 +279,9 @@ export default function Lessons() {
                            </span>
                         </td>
                         <td className="px-6 py-4">
-                           <div className="font-bold text-gray-900 mb-1">{attendanceMock}%</div>
+                           <div className="font-bold text-gray-900 mb-1">{attendancePct}%</div>
                            <div className="w-16 bg-gray-200 rounded-full h-1.5">
-                             <div className="bg-yellow-500 h-1.5 rounded-full" style={{width: `${attendanceMock}%`}}></div>
+                             <div className={`h-1.5 rounded-full ${attendancePct < 50 ? 'bg-red-500' : attendancePct < 80 ? 'bg-yellow-500' : 'bg-green-500'}`} style={{width: `${attendancePct}%`}}></div>
                            </div>
                         </td>
                         <td className="px-6 py-4">

@@ -17,6 +17,8 @@ router.put("/change-password", protect, profileController.changePassword);
 
 //thông tin lịch dạy
 router.get("/schedule", protect, scheduleController.getSchedule);
+router.get("/schedule/rollcall/:lessonId", protect, scheduleController.getRollcallData);
+router.post("/schedule/rollcall/:lessonId", protect, scheduleController.submitRollcall);
 
 //KHÓA HỌC
 //hien thi khoa hoc
@@ -38,6 +40,10 @@ router.get("/assignments/:id", protect, assignmentController.getAssignmentById);
 router.put("/assignments/:id", protect, upload.single("file"), assignmentController.updateAssignment);
 router.get("/assignments/:id/submissions", protect, assignmentController.getSubmissionsForAssignment);
 router.delete("/assignments/:id", protect, assignmentController.deleteAssignment);
+
+// nộp bài / chấm điểm
+router.get("/submissions/:id", protect, assignmentController.getSubmissionById);
+router.put("/submissions/:id/grade", protect, upload.array("files", 10), assignmentController.gradeSubmission);
 // duyệt đơn
 router.put("/courses/leave-requests/:id/approve", protect, courseController.approveLeaveRequest);
 

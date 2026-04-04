@@ -3,7 +3,8 @@ const GiangVien = require('../../models/GiangVien');
 const KhoaHoc = require('../../models/KhoaHoc');
 const BuoiHoc = require('../../models/BuoiHoc');
 const DangKyKhoaHoc = require('../../models/DangKyKhoaHoc');
-
+const ThamGiaBuoiHoc = require('../../models/ThamGiaBuoiHoc');
+const NguoiDung = require('../../models/NguoiDung');
 exports.getSchedule = async (req, res) => {
   try {
     const giangVien = await GiangVien.findOne({ userId: req.user._id });
@@ -38,17 +39,26 @@ exports.getSchedule = async (req, res) => {
       }
       const students = studentCountMap[courseIdStr];
 
+      // Merge lesson.ngayhoc date with lesson.giobatdau time to ignore DB date mismatches
+      const realStartDate = new Date(lesson.ngayhoc);
+      const startObj = new Date(lesson.giobatdau);
+      realStartDate.setHours(startObj.getHours(), startObj.getMinutes(), 0);
+
+      const realEndDate = new Date(lesson.ngayhoc);
+      const endObj = new Date(lesson.gioketthuc);
+      realEndDate.setHours(endObj.getHours(), endObj.getMinutes(), 0);
+
       // Determine status
       const now = new Date();
       let status = "upcoming";
-      if (now > lesson.gioketthuc) {
+      if (now > realEndDate) {
         status = "completed";
-      } else if (now >= lesson.giobatdau && now <= lesson.gioketthuc) {
+      } else if (now >= realStartDate && now <= realEndDate) {
         status = "ongoing";
       }
 
       // Format time (e.g. 09:00 - 10:30)
-      const timeFmt = `${new Date(lesson.giobatdau).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} - ${new Date(lesson.gioketthuc).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}`;
+      const timeFmt = `${startObj.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} - ${endObj.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}`;
 
       return {
         id: lesson._id,
@@ -59,6 +69,7 @@ exports.getSchedule = async (req, res) => {
         branch: lesson.phonghoc?.CoSoId?.Tencoso || "Chưa xếp",
         students,
         status,
+        rawStartTime: realStartDate,
       };
     }));
 
@@ -68,6 +79,99 @@ exports.getSchedule = async (req, res) => {
     });
   } catch (error) {
     console.error('Lỗi khi lấy lịch dạy:', error);
+    res.status(500).json({ success: false, message: 'Lỗi server' });
+  }
+};
+
+exports.getRollcallData = async (req, res) => {
+  try {
+    const { lessonId } = req.params;
+
+    // Lấy thông tin buổi học
+    const buoiHoc = await BuoiHoc.findById(lessonId)
+      .populate('KhoaHocID', 'tenkhoahoc')
+      .populate('phonghoc', 'TenPhong');
+
+    if (!buoiHoc) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy buổi học' });
+    }
+
+    // Lấy danh sách đăng ký khóa học (Học viên trong khóa)
+    const danhSachDangKy = await DangKyKhoaHoc.find({ KhoaHocID: buoiHoc.KhoaHocID._id })
+      .populate({
+        path: 'hocvienId',
+        populate: {
+          path: 'userId', // NguoiDung
+          select: 'hovaten email'
+        }
+      });
+
+    // Lấy trạng thái điểm danh hiện tại nếu đã lưu
+    const diemDanhDaLuu = await ThamGiaBuoiHoc.find({ buoihocID: lessonId });
+    const diemDanhMap = {};
+    diemDanhDaLuu.forEach(dd => {
+      diemDanhMap[dd.dangkykhoahocID.toString()] = dd.trangthai;
+    });
+
+    const studentList = danhSachDangKy.map(dk => ({
+      dangkykhoahocID: dk._id,
+      studentId: dk.hocvienId?._id,
+      userId: dk.hocvienId?.userId?._id,
+      name: dk.hocvienId?.userId?.hovaten || dk.hocvienId?.userId?.email || "Thiếu tên",
+      code: dk.hocvienId?.userId?.email?.split('@')[0] || "HV",
+      status: diemDanhMap[dk._id.toString()] || "absent" // Mặc định là absent nếu chưa điểm danh
+    }));
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        lesson: {
+          id: buoiHoc._id,
+          course: buoiHoc.KhoaHocID.tenkhoahoc,
+          room: buoiHoc.phonghoc?.TenPhong || "Chưa xếp",
+          date: buoiHoc.ngayhoc,
+          startTime: buoiHoc.giobatdau,
+          endTime: buoiHoc.gioketthuc
+        },
+        students: studentList
+      }
+    });
+
+  } catch (error) {
+    console.error('Lỗi khi lấy dữ liệu điểm danh:', error);
+    res.status(500).json({ success: false, message: 'Lỗi server' });
+  }
+};
+
+exports.submitRollcall = async (req, res) => {
+  try {
+    const { lessonId } = req.params;
+    const { attendanceList } = req.body; // Array: [{ dangkykhoahocID, status }]
+
+    if (!Array.isArray(attendanceList)) {
+      return res.status(400).json({ success: false, message: 'Dữ liệu không hợp lệ' });
+    }
+
+    const bulkOps = attendanceList.map(item => ({
+      updateOne: {
+        filter: { 
+          buoihocID: lessonId, 
+          dangkykhoahocID: item.dangkykhoahocID 
+        },
+        update: { 
+          $set: { trangthai: item.status } 
+        },
+        upsert: true
+      }
+    }));
+
+    if (bulkOps.length > 0) {
+      await ThamGiaBuoiHoc.bulkWrite(bulkOps);
+    }
+
+    return res.status(200).json({ success: true, message: 'Đã lưu điểm danh thành công' });
+  } catch (error) {
+    console.error('Lỗi khi lưu điểm danh:', error);
     res.status(500).json({ success: false, message: 'Lỗi server' });
   }
 };
