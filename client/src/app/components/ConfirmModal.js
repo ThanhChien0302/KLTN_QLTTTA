@@ -13,14 +13,14 @@ export default function ConfirmModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-md bg-white rounded-xl shadow-lg overflow-hidden">
-        <div className="px-6 py-5 border-b">
+      <div className="w-full max-w-md max-h-[80vh] bg-white rounded-xl shadow-lg overflow-hidden flex flex-col">
+        <div className="px-6 py-5 border-b flex-shrink-0">
           <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
         </div>
-        <div className="px-6 py-5">
+        <div className="px-6 py-5 overflow-y-auto flex-1">
           <p className="text-sm text-gray-600">{message}</p>
         </div>
-        <div className="px-6 py-4 flex justify-end gap-3 border-t bg-gray-50">
+        <div className="px-6 py-4 flex justify-end gap-3 border-t bg-gray-50 flex-shrink-0">
           <button
             type="button"
             onClick={onCancel}
