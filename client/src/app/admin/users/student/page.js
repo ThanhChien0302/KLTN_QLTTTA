@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../../../contexts/AuthContext";
 import { useNotification } from "../../../contexts/NotificationContext";
 import ConfirmModal from "../../../components/ConfirmModal";
@@ -199,6 +199,12 @@ export default function StudentAccountsPage() {
     if (isCompactLayout) setMobileFormOpen(true);
   };
 
+  const handleFaceRegistered = useCallback((data) => {
+    if (!data?._id) return;
+    setUsers((prev) => prev.map((u) => (u._id === data._id ? data : u)));
+    success("Đã đăng ký khuôn mặt thành công.");
+  }, [success]);
+
   const handleDeleteConfirm = async () => {
     if (!deletingUserId) return;
     try {
@@ -336,10 +342,14 @@ export default function StudentAccountsPage() {
               onChange={handleFieldChange}
             />
             <PasswordStrength password={formData.password} showWhenEmpty={isCreateMode} />
-            <div>
-              <label className="text-sm text-gray-600 dark:text-gray-300">Ảnh nhận diện khuôn mặt</label>
-              <div className="mt-1 px-3 py-5 border-2 border-dashed rounded-lg text-sm text-gray-500 text-center">Kéo thả hoặc click để chọn ảnh</div>
-            </div>
+            <FaceEnrollmentSection
+              active={!isCompactLayout && !isCreateMode && !!selectedUser}
+              token={token}
+              apiBase={API_BASE}
+              studentId={selectedUser?._id}
+              hasFaceDescriptor={!!selectedUser?.hocVienInfo?.hasFaceDescriptor}
+              onRegistered={handleFaceRegistered}
+            />
             {formError && <p className="text-sm text-red-500">{formError}</p>}
             <button className="w-full py-2 bg-green-600 text-white rounded-lg">{isCreateMode ? "Tạo mới" : "Cập nhật thông tin"}</button>
           </form>
@@ -347,9 +357,9 @@ export default function StudentAccountsPage() {
       </div>
 
       {mobileFormOpen ? (
-        <div className="fixed inset-0 z-[70] bg-black/40 flex items-center justify-center px-4">
-          <div className="w-full max-w-xl bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
-            <div className="px-6 py-4 border-b dark:border-gray-700 flex items-center justify-between gap-3">
+        <div className="fixed inset-0 z-[70] bg-black/40 flex items-center justify-center px-2 sm:px-4 py-2 sm:py-4">
+          <div className="flex flex-col min-h-0 w-[min(100%,90vw)] max-w-xl max-h-[85vh] sm:max-h-[90vh] bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
+            <div className="shrink-0 px-4 sm:px-6 py-4 border-b dark:border-gray-700 flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <div className="text-base font-bold text-gray-900 dark:text-gray-100">
                   {isCreateMode ? "Thêm học viên" : "Chi tiết học viên"}
@@ -359,12 +369,12 @@ export default function StudentAccountsPage() {
               <button
                 type="button"
                 onClick={() => setMobileFormOpen(false)}
-                className="px-3 py-2 rounded-md text-sm font-medium bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 dark:bg-gray-900 dark:border-gray-700 dark:hover:bg-gray-700 dark:text-gray-200"
+                className="shrink-0 px-3 py-2 rounded-md text-sm font-medium bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 dark:bg-gray-900 dark:border-gray-700 dark:hover:bg-gray-700 dark:text-gray-200"
               >
                 Đóng
               </button>
             </div>
-            <div className="px-6 py-5">
+            <div className="px-4 sm:px-6 py-5 overflow-y-auto flex-1 min-h-0">
               <form onSubmit={handleSave} className="space-y-3">
                 <InputField label="Họ và tên" name="hovaten" value={formData.hovaten} onChange={handleFieldChange} />
                 <InputField
@@ -397,12 +407,14 @@ export default function StudentAccountsPage() {
                   onChange={handleFieldChange}
                 />
                 <PasswordStrength password={formData.password} showWhenEmpty={isCreateMode} />
-                <div>
-                  <label className="text-sm text-gray-600 dark:text-gray-300">Ảnh nhận diện khuôn mặt</label>
-                  <div className="mt-1 px-3 py-5 border-2 border-dashed rounded-lg text-sm text-gray-500 text-center">
-                    Kéo thả hoặc click để chọn ảnh
-                  </div>
-                </div>
+                <FaceEnrollmentSection
+                  active={isCompactLayout && mobileFormOpen && !isCreateMode && !!selectedUser}
+                  token={token}
+                  apiBase={API_BASE}
+                  studentId={selectedUser?._id}
+                  hasFaceDescriptor={!!selectedUser?.hocVienInfo?.hasFaceDescriptor}
+                  onRegistered={handleFaceRegistered}
+                />
                 {formError && <p className="text-sm text-red-500">{formError}</p>}
                 <button className="w-full py-2 bg-green-600 text-white rounded-lg">
                   {isCreateMode ? "Tạo mới" : "Cập nhật thông tin"}
@@ -430,4 +442,112 @@ const StatCard = ({ title, value }) => (
     <p className="text-4xl font-bold text-gray-900 dark:text-white">{value}</p>
   </div>
 );
-// Không còn Input cục bộ: dùng chung InputField
+
+function FaceEnrollmentSection({
+  active,
+  token,
+  apiBase,
+  studentId,
+  hasFaceDescriptor,
+  onRegistered,
+}) {
+  const videoRef = useRef(null);
+  const [scanning, setScanning] = useState(false);
+  const [camError, setCamError] = useState("");
+  const [scanError, setScanError] = useState("");
+
+  useEffect(() => {
+    if (!active || !studentId) {
+      return undefined;
+    }
+    let stream;
+    (async () => {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "user" },
+          audio: false,
+        });
+        if (videoRef.current) videoRef.current.srcObject = stream;
+        setCamError("");
+      } catch {
+        setCamError("Không mở được camera. Kiểm tra quyền trình duyệt.");
+      }
+    })();
+    return () => {
+      if (stream) stream.getTracks().forEach((t) => t.stop());
+      if (videoRef.current) videoRef.current.srcObject = null;
+    };
+  }, [active, studentId]);
+
+  const scanFace = async () => {
+    if (!videoRef.current || !studentId || !token) return;
+    const v = videoRef.current;
+    if (!v.videoWidth) {
+      setScanError("Camera chưa sẵn sàng.");
+      return;
+    }
+    setScanning(true);
+    setScanError("");
+    try {
+      const canvas = document.createElement("canvas");
+      canvas.width = v.videoWidth;
+      canvas.height = v.videoHeight;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(v, 0, 0);
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92));
+      if (!blob) throw new Error("Không tạo được ảnh");
+      const fd = new FormData();
+      fd.append("image", blob, "face.jpg");
+      const r = await fetch(`${apiBase}/api/admin/users/students/${studentId}/face`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: fd,
+      });
+      const result = await r.json();
+      if (!r.ok || !result.success) throw new Error(result.message || "Đăng ký khuôn mặt thất bại");
+      onRegistered?.(result.data);
+    } catch (e) {
+      setScanError(e.message || "Lỗi");
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  if (!studentId) {
+    return (
+      <div className="rounded-lg border border-dashed border-gray-300 dark:border-gray-600 px-3 py-4 text-sm text-gray-500 text-center">
+        Lưu tài khoản học viên trước, sau đó mới đăng ký khuôn mặt.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <label className="text-sm text-gray-600 dark:text-gray-300">Nhận diện khuôn mặt</label>
+        {hasFaceDescriptor ? (
+          <span className="text-xs text-green-600 dark:text-green-400">Đã đăng ký</span>
+        ) : (
+          <span className="text-xs text-amber-600 dark:text-amber-400">Chưa đăng ký</span>
+        )}
+      </div>
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted
+        className="w-full rounded-lg bg-black aspect-video object-cover max-h-56"
+      />
+      {camError && <p className="text-xs text-red-500">{camError}</p>}
+      <button
+        type="button"
+        onClick={scanFace}
+        disabled={scanning || !active || !!camError}
+        className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {scanning ? "Đang xử lý..." : "Quét mặt"}
+      </button>
+      {scanError && <p className="text-xs text-red-500">{scanError}</p>}
+    </div>
+  );
+}

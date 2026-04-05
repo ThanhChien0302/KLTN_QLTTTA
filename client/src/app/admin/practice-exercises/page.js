@@ -10,6 +10,19 @@ import { formatDateDdMmYyyy } from "../../../lib/dateFormat";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
+/** Bài hỗn hợp: mỗi item chọn quiz / multi / TF / short — không flashcard */
+const MIXED_NO_FLASHCARD = "mixedNoFlashcard";
+const MIXED_ITEM_TYPE_OPTIONS = [
+  { value: "quiz", label: "Quiz (một đáp án)" },
+  { value: "multiSelect", label: "Chọn nhiều" },
+  { value: "trueFalse", label: "Đúng / Sai" },
+  { value: "shortAnswer", label: "Trả lời ngắn" },
+];
+
+function effectiveItemLoai(localEx, itemForm) {
+  return localEx.loaiBai === MIXED_NO_FLASHCARD ? itemForm.loaiItem : localEx.loaiBai;
+}
+
 function Modal({ isOpen, title, onClose, children, footer }) {
   if (!isOpen) return null;
   return (
@@ -131,6 +144,7 @@ function PracticeExerciseEditor({
   const [itemEditing, setItemEditing] = useState(null);
   const [itemForm, setItemForm] = useState({
     thuTu: 1,
+    loaiItem: "quiz",
     noiDung: "",
     matTruoc: "",
     matSau: "",
@@ -146,6 +160,7 @@ function PracticeExerciseEditor({
     setItemEditing(null);
     setItemForm({
       thuTu: nextThuTu,
+      loaiItem: localEx.loaiBai === MIXED_NO_FLASHCARD ? "quiz" : localEx.loaiBai,
       noiDung: "",
       matTruoc: "",
       matSau: "",
@@ -162,6 +177,7 @@ function PracticeExerciseEditor({
     setItemEditing(it);
     setItemForm({
       thuTu: Number(it.thuTu || 1),
+      loaiItem: it.loaiItem || localEx.loaiBai || "quiz",
       noiDung: it.noiDung || "",
       matTruoc: it.matTruoc || "",
       matSau: it.matSau || "",
@@ -183,30 +199,35 @@ function PracticeExerciseEditor({
       const loaiBai = localEx.loaiBai;
       if (!loaiBai) return notify.warning("Thiếu loaiBai.");
 
+      const itemLoai = effectiveItemLoai(localEx, itemForm);
+      if (localEx.loaiBai === MIXED_NO_FLASHCARD) {
+        if (!MIXED_ITEM_TYPE_OPTIONS.some((o) => o.value === itemLoai)) return notify.warning("Chọn loại câu cho item (quiz / multi / TF / short).");
+      }
+
       const basePayload = {
-        loaiItem: loaiBai,
+        loaiItem: itemLoai,
         thuTu: Number(itemForm.thuTu),
         noiDung: String(itemForm.noiDung || ""),
       };
 
       let payload = { ...basePayload };
-      if (loaiBai === "flashcard") {
+      if (itemLoai === "flashcard") {
         payload = { ...payload, matTruoc: String(itemForm.matTruoc || "").trim(), matSau: String(itemForm.matSau || "").trim() };
-      } else if (loaiBai === "quiz") {
+      } else if (itemLoai === "quiz") {
         payload = {
           ...payload,
           luaChon: (itemForm.luaChon || []).map((x) => String(x || "").trim()),
           dapAnDungIndex: Number(itemForm.dapAnDungIndex),
         };
-      } else if (loaiBai === "multiSelect") {
+      } else if (itemLoai === "multiSelect") {
         payload = {
           ...payload,
           luaChon: (itemForm.luaChon || []).map((x) => String(x || "").trim()),
           dapAnDungIndices: parseNumberArrayFromCSV(itemForm.dapAnDungIndicesCSV),
         };
-      } else if (loaiBai === "trueFalse") {
+      } else if (itemLoai === "trueFalse") {
         payload = { ...payload, dapAnDungBoolean: itemForm.dapAnDungBoolean === true };
-      } else if (loaiBai === "shortAnswer") {
+      } else if (itemLoai === "shortAnswer") {
         payload = { ...payload, dapAnDungText: String(itemForm.dapAnDungText || "").trim() };
       }
 
@@ -266,23 +287,27 @@ function PracticeExerciseEditor({
   };
 
   const renderItemPreview = (it) => {
-    if (localEx.loaiBai === "flashcard") {
-      return it.matTruoc ? `Flashcard: ${it.matTruoc}` : "Flashcard";
+    const t = it.loaiItem || localEx.loaiBai;
+    const prefix = localEx.loaiBai === MIXED_NO_FLASHCARD && t ? `[${t}] ` : "";
+    if (t === "flashcard") {
+      return `${prefix}${it.matTruoc ? `Flashcard: ${it.matTruoc}` : "Flashcard"}`;
     }
-    if (localEx.loaiBai === "quiz") {
-      return it.noiDung ? `Quiz: ${it.noiDung}` : "Quiz";
+    if (t === "quiz") {
+      return `${prefix}${it.noiDung ? `Quiz: ${it.noiDung}` : "Quiz"}`;
     }
-    if (localEx.loaiBai === "multiSelect") {
-      return it.noiDung ? `MultiSelect: ${it.noiDung}` : "MultiSelect";
+    if (t === "multiSelect") {
+      return `${prefix}${it.noiDung ? `MultiSelect: ${it.noiDung}` : "MultiSelect"}`;
     }
-    if (localEx.loaiBai === "trueFalse") {
-      return it.noiDung ? `True/False: ${it.noiDung}` : "True/False";
+    if (t === "trueFalse") {
+      return `${prefix}${it.noiDung ? `True/False: ${it.noiDung}` : "True/False"}`;
     }
-    if (localEx.loaiBai === "shortAnswer") {
-      return it.noiDung ? `ShortAnswer: ${it.noiDung}` : "ShortAnswer";
+    if (t === "shortAnswer") {
+      return `${prefix}${it.noiDung ? `ShortAnswer: ${it.noiDung}` : "ShortAnswer"}`;
     }
-    return "Item";
+    return prefix ? `${prefix}Item` : "Item";
   };
+
+  const itemModalLoai = effectiveItemLoai(localEx, itemForm);
 
   return (
     <div className="p-4 md:p-6 min-h-full">
@@ -290,7 +315,9 @@ function PracticeExerciseEditor({
         <div className="mb-4 flex items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{isCreate ? "Tạo bài luyện tập" : "Chỉnh sửa bài luyện tập"}</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Quản lý item/câu theo loại bài</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Quản lý item theo loại bài; bài <strong className="font-medium">hỗn hợp</strong> cho phép từng câu là quiz / multi / TF / short (không flashcard).
+            </p>
           </div>
           <button
             type="button"
@@ -484,6 +511,19 @@ function PracticeExerciseEditor({
               <div className="hidden" />
             </div>
 
+            {localEx.loaiBai === MIXED_NO_FLASHCARD ? (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Loại câu (trong bài hỗn hợp)</label>
+                <InputField
+                  type="select"
+                  value={itemForm.loaiItem}
+                  onChange={(e) => setItemForm((p) => ({ ...p, loaiItem: e.target.value }))}
+                  inputClassName="w-full px-3 py-2 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  options={MIXED_ITEM_TYPE_OPTIONS}
+                />
+              </div>
+            ) : null}
+
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nội dung (dùng cho quiz/multi/TF/short)</label>
               <InputField
@@ -495,7 +535,7 @@ function PracticeExerciseEditor({
               />
             </div>
 
-            {localEx.loaiBai === "flashcard" ? (
+            {itemModalLoai === "flashcard" ? (
               <div className="space-y-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Mặt trước</label>
@@ -520,7 +560,7 @@ function PracticeExerciseEditor({
               </div>
             ) : null}
 
-            {localEx.loaiBai === "quiz" ? (
+            {itemModalLoai === "quiz" ? (
               <div className="space-y-3">
                 <div className="text-sm font-semibold text-gray-900 dark:text-white">4 lựa chọn</div>
                 {["A", "B", "C", "D"].map((label, idx) => (
@@ -552,7 +592,7 @@ function PracticeExerciseEditor({
               </div>
             ) : null}
 
-            {localEx.loaiBai === "multiSelect" ? (
+            {itemModalLoai === "multiSelect" ? (
               <div className="space-y-3">
                 <div className="text-sm font-semibold text-gray-900 dark:text-white">4 lựa chọn</div>
                 {["A", "B", "C", "D"].map((label, idx) => (
@@ -582,7 +622,7 @@ function PracticeExerciseEditor({
               </div>
             ) : null}
 
-            {localEx.loaiBai === "trueFalse" ? (
+            {itemModalLoai === "trueFalse" ? (
               <div className="space-y-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Đáp án đúng</label>
@@ -600,7 +640,7 @@ function PracticeExerciseEditor({
               </div>
             ) : null}
 
-            {localEx.loaiBai === "shortAnswer" ? (
+            {itemModalLoai === "shortAnswer" ? (
               <div className="space-y-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Đáp án mẫu</label>
@@ -657,14 +697,17 @@ export default function PracticeExercisesPage() {
 
   const loaiBaiOptions = useMemo(
     () => [
-      { value: "flashcard", label: "flashcard" },
-      { value: "quiz", label: "quiz" },
-      { value: "trueFalse", label: "trueFalse" },
-      { value: "shortAnswer", label: "shortAnswer" },
-      { value: "multiSelect", label: "multiSelect" },
+      { value: "flashcard", label: "Flashcard" },
+      { value: "quiz", label: "Quiz (một đáp án)" },
+      { value: "trueFalse", label: "Đúng / Sai" },
+      { value: "shortAnswer", label: "Trả lời ngắn" },
+      { value: "multiSelect", label: "Chọn nhiều" },
+      { value: MIXED_NO_FLASHCARD, label: "Hỗn hợp (không flashcard)" },
     ],
     []
   );
+
+  const loaiBaiLabel = (v) => loaiBaiOptions.find((o) => o.value === v)?.label || v;
 
   const fetchCourses = async () => {
     const res = await fetch(API_COURSES, { headers: { Authorization: `Bearer ${token}` } });
@@ -781,7 +824,9 @@ export default function PracticeExercisesPage() {
           <div className="mb-4 flex items-center justify-between gap-4">
             <div>
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Quản lý luyện tập</h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400">CRUD bài luyện tập và item/câu flashcard/quiz/TF/short/multiSelect</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                CRUD bài luyện tập và item; loại hỗn hợp (không flashcard): mỗi câu chọn quiz, chọn nhiều, đúng/sai hoặc trả lời ngắn.
+              </p>
             </div>
             <button
               type="button"
@@ -841,7 +886,7 @@ export default function PracticeExercisesPage() {
                     items.map((it) => (
                       <tr key={it._id} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600/40">
                         <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">{it.tenBai}</td>
-                        <td className="px-6 py-4">{it.loaiBai}</td>
+                        <td className="px-6 py-4">{loaiBaiLabel(it.loaiBai)}</td>
                         <td className="px-6 py-4">{it.thoiGianLamBai || 0} phút</td>
                         <td className="px-6 py-4">{it.itemCount ?? 0}</td>
                         <td className="px-6 py-4">{it.createdAt ? formatDateDdMmYyyy(it.createdAt) : "—"}</td>
