@@ -18,6 +18,8 @@ import {
   FiLogOut,
   FiLayers,
   FiClipboard,
+  FiCamera,
+  FiKey,
 } from "react-icons/fi";
 
 export default function AdminLayout({ children }) {
@@ -245,6 +247,21 @@ export default function AdminLayout({ children }) {
               onNavigate={onNavigate}
             />
           </CollapsibleMenu>
+
+          <SidebarLink
+            href="/admin/attendance"
+            text="Điểm danh (real-time)"
+            icon={<FiCamera className="h-5 w-5" />}
+            collapsed={collapsed}
+            onNavigate={onNavigate}
+          />
+          <SidebarLink
+            href="/admin/kiosk-keys"
+            text="Mã kiosk điểm danh"
+            icon={<FiKey className="h-5 w-5" />}
+            collapsed={collapsed}
+            onNavigate={onNavigate}
+          />
 
           <p
             className={`px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider mt-6 mb-2 ${
