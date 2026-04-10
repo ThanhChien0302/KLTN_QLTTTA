@@ -1,142 +1,162 @@
 "use client";
 
+import { useState, useEffect } from "react";
+import { useAuth } from "../../contexts/AuthContext";
+
 export default function Announcements() {
+  const [announcements, setAnnouncements] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+
+  useEffect(() => {
+    fetchAnnouncements();
+  }, []);
+
+  const fetchAnnouncements = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem("token");
+      if (!token) return;
+
+      const res = await fetch(`${apiUrl}/api/notifications`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setAnnouncements(data.data);
+      }
+    } catch (error) {
+      console.error("Lỗi lấy thông báo:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const markAsRead = async (id) => {
+    try {
+      const token = localStorage.getItem("token");
+      await fetch(`${apiUrl}/api/notifications/${id}/read`, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      // Cập nhật lại local state
+      setAnnouncements(prev => prev.map(a =>
+        a._id === id ? { ...a, readByUserIds: [...a.readByUserIds, user?._id] } : a
+      ));
+    } catch (error) {
+      console.error("Lỗi đánh dấu đã đọc:", error);
+    }
+  };
+
+  const getTypeBadgeColor = (type) => {
+    switch (type) {
+      case 'class': return 'bg-orange-100 text-orange-600';
+      case 'personal': return 'bg-purple-100 text-purple-600';
+      case 'assignment_submit': return 'bg-green-100 text-green-600';
+      default: return 'bg-blue-100 text-blue-600';
+    }
+  };
+
+  const getTypeText = (type) => {
+    switch (type) {
+      case 'all': return 'Hệ thống';
+      case 'class': return 'Lớp học';
+      case 'personal': return 'Cá nhân';
+      case 'assignment_submit': return 'Nộp bài';
+      default: return 'Thông báo chung';
+    }
+  };
+
   return (
-    <div className="space-y-6">
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <h1 className="text-2xl font-bold text-gray-800 mb-4">Thông Báo</h1>
-        <p className="text-gray-600">Xem các thông báo và tin tức từ trung tâm</p>
+    <div className="bg-gray-100 min-h-screen p-8">
+      <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+        <h1 className="text-2xl font-bold text-gray-800">Thông Báo</h1>
       </div>
 
-      <div className="space-y-4">
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex items-start justify-between mb-4">
-            <div className="flex-1">
-              <div className="flex items-center mb-2">
-                <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm font-medium mr-3">
-                  Quan trọng
-                </span>
-                <span className="text-sm text-gray-500">15/12/2024</span>
-              </div>
-              <h3 className="text-lg font-semibold text-gray-800 mb-2">
-                Thông báo nghỉ lễ Giáng sinh và Năm mới 2025
-              </h3>
-              <p className="text-gray-600 mb-4">
-                Trung tâm sẽ nghỉ lễ từ ngày 24/12/2024 đến 02/01/2025. Các lớp học sẽ được bù vào tuần sau.
-                Vui lòng theo dõi lịch học được cập nhật trên hệ thống.
-              </p>
-            </div>
-            <div className="ml-4">
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                Chưa đọc
-              </span>
-            </div>
-          </div>
-          <button className="text-blue-600 hover:text-blue-800 text-sm font-medium">
-            Đọc thêm
+      <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+          <h3 className="text-lg font-semibold text-gray-800">Danh sách thông báo</h3>
+          <button
+            onClick={fetchAnnouncements}
+            className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Làm mới
           </button>
         </div>
 
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex items-start justify-between mb-4">
-            <div className="flex-1">
-              <div className="flex items-center mb-2">
-                <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium mr-3">
-                  Thông báo
-                </span>
-                <span className="text-sm text-gray-500">10/12/2024</span>
-              </div>
-              <h3 className="text-lg font-semibold text-gray-800 mb-2">
-                Kết quả bài kiểm tra giữa kỳ Unit 1-5
-              </h3>
-              <p className="text-gray-600 mb-4">
-                Kết quả bài kiểm tra giữa kỳ đã được cập nhật. Học viên có thể xem điểm số và nhận xét
-                chi tiết trong mục "Bài tập" của từng khóa học.
-              </p>
-            </div>
-            <div className="ml-4">
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                Đã đọc
-              </span>
-            </div>
-          </div>
-          <button className="text-blue-600 hover:text-blue-800 text-sm font-medium">
-            Đọc thêm
-          </button>
-        </div>
+        <div className="divide-y divide-gray-100">
+          {loading ? (
+            <div className="p-8 text-center text-gray-500">Đang tải thông báo...</div>
+          ) : announcements.length === 0 ? (
+            <div className="p-8 text-center text-gray-500">Chưa có thông báo nào.</div>
+          ) : announcements.map((item) => {
+            const isRead = item.readByUserIds?.includes(user?._id);
+            return (
+              <div
+                key={item._id}
+                className={`p-6 transition-colors ${!isRead ? 'bg-blue-50/30' : 'bg-white hover:bg-gray-50'} ${item.link ? 'cursor-pointer' : ''}`}
+                onClick={() => {
+                  if (!isRead) markAsRead(item._id);
+                  if (item.link) {
+                    window.location.href = item.link;
+                  }
+                }}
+              >
+                <div className="flex justify-between items-start mb-2">
+                  <div className="flex items-center space-x-3">
+                    <h4 className={`text-lg ${!isRead ? 'font-bold text-gray-900' : 'font-semibold text-gray-800'}`}>
+                      {item.tieuDe || 'Thông báo mới'}
+                    </h4>
+                    <span className={`px-3 py-0.5 rounded-full text-xs font-medium ${getTypeBadgeColor(item.targetType)}`}>
+                      {getTypeText(item.targetType)}
+                    </span>
+                    {!isRead && (
+                      <span className="px-2 py-0.5 rounded text-[10px] uppercase font-bold bg-blue-600 text-white">Mới</span>
+                    )}
+                  </div>
+                  <div className="text-xs text-gray-400 text-right">
+                    {new Date(item.createdAt).toLocaleString('vi-VN')}
+                  </div>
+                </div>
 
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex items-start justify-between mb-4">
-            <div className="flex-1">
-              <div className="flex items-center mb-2">
-                <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium mr-3">
-                  Sự kiện
-                </span>
-                <span className="text-sm text-gray-500">05/12/2024</span>
-              </div>
-              <h3 className="text-lg font-semibold text-gray-800 mb-2">
-                Workshop: Kỹ năng giao tiếp tiếng Anh trong công việc
-              </h3>
-              <p className="text-gray-600 mb-4">
-                Trung tâm tổ chức workshop miễn phí về kỹ năng giao tiếp tiếng Anh trong môi trường làm việc.
-                Thời gian: 20/12/2024, 14:00-16:00. Đăng ký trước ngày 15/12/2024.
-              </p>
-            </div>
-            <div className="ml-4">
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                Đã đọc
-              </span>
-            </div>
-          </div>
-          <button className="text-blue-600 hover:text-blue-800 text-sm font-medium">
-            Đọc thêm
-          </button>
-        </div>
+                <p className="text-gray-600 mb-4 text-sm leading-relaxed whitespace-pre-wrap">
+                  {item.noidung}
+                </p>
 
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex items-start justify-between mb-4">
-            <div className="flex-1">
-              <div className="flex items-center mb-2">
-                <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-medium mr-3">
-                  Cập nhật
-                </span>
-                <span className="text-sm text-gray-500">01/12/2024</span>
-              </div>
-              <h3 className="text-lg font-semibold text-gray-800 mb-2">
-                Cập nhật tính năng mới: Luyện tập trực tuyến
-              </h3>
-              <p className="text-gray-600 mb-4">
-                Hệ thống đã được cập nhật với tính năng luyện tập trực tuyến mới. Học viên có thể thực hiện
-                các bài tập tương tác ngay trên nền tảng mà không cần tải xuống.
-              </p>
-            </div>
-            <div className="ml-4">
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                Đã đọc
-              </span>
-            </div>
-          </div>
-          <button className="text-blue-600 hover:text-blue-800 text-sm font-medium">
-            Đọc thêm
-          </button>
-        </div>
-      </div>
+                <div className="flex justify-between items-center mb-2">
+                  <div className="flex space-x-6 text-sm text-gray-400">
+                    {item.createdBy && (
+                      <div><span className="font-semibold text-gray-500">Người gửi:</span> {item.createdBy?.hovaten || 'Admin'}</div>
+                    )}
+                    {item.khoaHocId && (
+                      <div><span className="font-semibold text-gray-500">Khóa học:</span> {item.khoaHocId?.tenkhoahoc}</div>
+                    )}
+                  </div>
 
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4">Thống kê thông báo</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="text-center p-4 bg-blue-50 rounded-lg">
-            <div className="text-2xl font-bold text-blue-600">12</div>
-            <div className="text-sm text-gray-600">Tổng số thông báo</div>
-          </div>
-          <div className="text-center p-4 bg-red-50 rounded-lg">
-            <div className="text-2xl font-bold text-red-600">3</div>
-            <div className="text-sm text-gray-600">Chưa đọc</div>
-          </div>
-          <div className="text-center p-4 bg-green-50 rounded-lg">
-            <div className="text-2xl font-bold text-green-600">9</div>
-            <div className="text-sm text-gray-600">Đã đọc</div>
-          </div>
+                  {item.link && (
+                    <button
+                      className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg shadow-sm flex items-center gap-2 transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (!isRead) markAsRead(item._id);
+                        window.location.href = item.link;
+                      }}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                      {item.targetType === 'assignment_submit' || item.link.includes('grade-ass') ? 'Chấm bài nộp' : 'Xem chi tiết'}
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

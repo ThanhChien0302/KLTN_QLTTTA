@@ -19,7 +19,10 @@ router.post('/leave-requests', protect, leaveRequestController.createLeaveReques
 
 // Assignment submit route
 const assignmentController = require('../../controllers/student/assignmentController');
-router.post('/assignments/submit', protect, assignmentController.submitAssignment);
+const upload = require('../../middlewares/multer');
+router.get('/courses/:courseId/assignments', protect, assignmentController.getAssignmentsByCourse);
+router.get('/assignments/:id', protect, assignmentController.getAssignmentDetail);
+router.post('/assignments/submit', protect, upload.single('file'), assignmentController.submitAssignment);
 
 // Schedule routes
 router.get('/schedule', protect, scheduleController.getStudentSchedule);
