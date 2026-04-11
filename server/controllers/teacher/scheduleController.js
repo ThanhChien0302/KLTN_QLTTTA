@@ -32,7 +32,7 @@ exports.getSchedule = async (req, res) => {
 
     const formattedData = await Promise.all(buoiHocs.map(async (lesson) => {
       const courseIdStr = lesson.KhoaHocID._id.toString();
-      
+
       if (studentCountMap[courseIdStr] === undefined) {
         const count = await DangKyKhoaHoc.countDocuments({ KhoaHocID: lesson.KhoaHocID._id });
         studentCountMap[courseIdStr] = count;
@@ -168,12 +168,12 @@ exports.submitRollcall = async (req, res) => {
 
     const bulkOps = attendanceList.map(item => ({
       updateOne: {
-        filter: { 
-          buoihocID: lessonId, 
-          dangkykhoahocID: item.dangkykhoahocID 
+        filter: {
+          buoihocID: lessonId,
+          dangkykhoahocID: item.dangkykhoahocID
         },
-        update: { 
-          $set: { trangthai: item.status } 
+        update: {
+          $set: { trangthai: item.status }
         },
         upsert: true
       }

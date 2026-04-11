@@ -10,9 +10,10 @@ const NguoiDung = require('../../models/NguoiDung');
 exports.getLeaveRequests = async (req, res) => {
   try {
     // 1. Lấy ID giảng viên từ req.user
-    const giangVien = await GiangVien.findOne({ userId: req.user._id });
+    let giangVien = await GiangVien.findOne({ userId: req.user._id });
     if (!giangVien) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy thông tin giảng viên' });
+      giangVien = new GiangVien({ userId: req.user._id });
+      await giangVien.save();
     }
 
 
@@ -152,9 +153,10 @@ exports.rejectLeaveRequest = async (req, res) => {
 // GET /teacher/courses
 exports.getCourses = async (req, res) => {
   try {
-    const giangVien = await GiangVien.findOne({ userId: req.user._id });
+    let giangVien = await GiangVien.findOne({ userId: req.user._id });
     if (!giangVien) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy giảng viên' });
+      giangVien = new GiangVien({ userId: req.user._id });
+      await giangVien.save();
     }
 
     const courses = await KhoaHoc.find({ giangvien: giangVien._id });
@@ -201,9 +203,10 @@ exports.getStudentsByCourse = async (req, res) => {
   try {
     const { courseId } = req.params;
 
-    const giangVien = await GiangVien.findOne({ userId: req.user._id });
+    let giangVien = await GiangVien.findOne({ userId: req.user._id });
     if (!giangVien) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy giảng viên' });
+      giangVien = new GiangVien({ userId: req.user._id });
+      await giangVien.save();
     }
 
     const course = await KhoaHoc.findOne({ _id: courseId, giangvien: giangVien._id });
@@ -245,9 +248,10 @@ exports.deleteStudentFromCourse = async (req, res) => {
     const { courseId, studentId } = req.params;
 
     // Kiểm tra giảng viên này có phải là giáo viên của khóa học không
-    const giangVien = await GiangVien.findOne({ userId: req.user._id });
+    let giangVien = await GiangVien.findOne({ userId: req.user._id });
     if (!giangVien) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy giảng viên' });
+      giangVien = new GiangVien({ userId: req.user._id });
+      await giangVien.save();
     }
 
     const course = await KhoaHoc.findOne({ _id: courseId, giangvien: giangVien._id });

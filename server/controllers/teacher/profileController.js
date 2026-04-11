@@ -4,12 +4,14 @@ const bcrypt = require("bcryptjs");
 // GET PROFILE
 exports.getProfile = async (req, res) => {
     try {
-        const gv = await GiangVien.findOne({ userId: req.user._id })
+        let gv = await GiangVien.findOne({ userId: req.user._id })
             .populate("userId")
             .lean();
 
         if (!gv) {
-            return res.status(404).json({ message: "Không tìm thấy giảng viên" });
+            const newGv = new GiangVien({ userId: req.user._id });
+            await newGv.save();
+            gv = await GiangVien.findById(newGv._id).populate("userId").lean();
         }
 
         res.json(gv);

@@ -6,8 +6,12 @@ const courseController = require("../../controllers/teacher/courseController");
 const assignmentController = require("../../controllers/teacher/assignmentController");
 const lessonController = require("../../controllers/teacher/lessonController")
 const scheduleController = require("../../controllers/teacher/scheduleController");
+const dashboardController = require("../../controllers/teacher/dashboardController");
 const { protect } = require("../../middlewares/authMiddleware");
 const upload = require("../../middlewares/multer");
+
+// dashboard
+router.get("/dashboard", protect, dashboardController.getDashboardStats);
 
 // thông tin cá nhân
 router.get("/profile", protect, profileController.getProfile);
