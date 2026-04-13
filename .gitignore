@@ -1,8 +1,8 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# https://help.github.com/articles/ignoring-files/
 
-# dependencies
-/node_modules
-/.pnp
+# Dependencies
+node_modules/
+.pnp
 .pnp.*
 .yarn/*
 !.yarn/patches
@@ -10,101 +10,76 @@
 !.yarn/releases
 !.yarn/versions
 
-# testing
-/coverage
+# Environment (giữ .env.example trong repo)
+.env
+.env.*
+!.env.example
+!**/.env.example
 
-# next.js
-/.next/
-/out/
+# Next.js (client)
+.next/
+out/
 
-# production
-/build
+# Build / output
+build/
+dist/
 
-# misc
-.DS_Store
-*.pem
+# Testing & coverage
+coverage/
+.nyc_output/
 
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-
-# env files (can opt-in for committing if needed)
-.env*
-
-# vercel
-.vercel
-
-# typescript
-*.tsbuildinfo
-next-env.d.ts
-
-# Node modules
-node_modules/
+# Logs & debug
+logs/
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+.pnpm-debug.log*
 
-# Logs
-logs/
-*.log
+# Caches
+.npm
+.eslintcache
+.cache/
+.parcel-cache/
+.turbo/
 
-# Runtime data
-pids/
-*.pid
-*.seed
-*.pid.lock
+# TypeScript
+*.tsbuildinfo
 
-# Coverage (test)
-coverage/
+# Vercel / deploy
+.vercel
 
-# Environment variables
-.env
-.env.*
-!.env.example
-
-# Build / production
-dist/
-build/
-
-# OS files
+# Misc
+*.pem
 .DS_Store
 Thumbs.db
+ehthumbs.db
+Desktop.ini
 
-# IDE / Editor
+# IDE / editor
 .vscode/
 .idea/
 *.swp
 *.swo
+*~
 
-# Optional npm cache directory
-.npm
-
-# Optional eslint cache
-.eslintcache
-
-# Optional parcel cache
-.cache/
-
-# Next.js / React (nếu có)
-.next/
-out/
-
-# Temporary files
+# Temporary
 tmp/
 temp/
+*.tmp
+*.orig
 
-# Upload files (nếu có)
+# Uploads (local / generated)
 uploads/
 public/uploads/
 
-# Database (local)
+# Local databases
 *.sqlite
+*.sqlite3
 *.db
 
-# Python — attendanceService (điểm danh / nhận diện khuôn mặt)
+# Python — attendanceService
 attendanceService/.venv/
 attendanceService/venv/
 attendanceService/**/__pycache__/
@@ -115,3 +90,9 @@ attendanceService/**/.ruff_cache/
 attendanceService/**/*.egg-info/
 attendanceService/dist/
 attendanceService/build/
+
+
+.agents/
+.cursor/
+.interface-design/
+.sixth/

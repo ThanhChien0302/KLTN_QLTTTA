@@ -9,9 +9,23 @@ import InputField from "../../components/InputField";
 import { formatDateDdMmYyyy } from "../../../lib/dateFormat";
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 const DAY_LABELS = ["Chủ nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"];
+const MONTH_FILTER_OPTIONS = [
+  { value: "", label: "Cả năm" },
+  ...Array.from({ length: 12 }, (_, i) => ({ value: String(i + 1), label: `Tháng ${i + 1}` })),
+];
+function getCurrentYearString() {
+  return String(new Date().getFullYear());
+}
+function buildYearFilterOptions() {
+  const y = new Date().getFullYear();
+  const opts = [{ value: "", label: "Mọi năm" }];
+  for (let i = y - 8; i <= y + 6; i += 1) opts.push({ value: String(i), label: String(i) });
+  return opts;
+}
 const createDefaultForm = () => ({
   _id: "",
   tenkhoahoc: "",
+  CoSoId: "",
   LoaiKhoaHocID: "",
   ngaykhaigiang: "",
   giangvien: "",
@@ -25,9 +39,17 @@ export default function AdminCoursesPage() {
   const [courseTypes, setCourseTypes] = useState([]);
   const [teachers, setTeachers] = useState([]);
   const [rooms, setRooms] = useState([]);
+  const [facilities, setFacilities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [filters, setFilters] = useState({ LoaiKhoaHocID: "", giangvien: "", from: "", to: "" });
+  const [filters, setFilters] = useState({
+    LoaiKhoaHocID: "",
+    giangvien: "",
+    CoSoId: "",
+    year: getCurrentYearString(),
+    month: "",
+  });
+  const yearFilterOptions = useMemo(() => buildYearFilterOptions(), []);
   const [modalOpen, setModalOpen] = useState(false);
   const [formData, setFormData] = useState(createDefaultForm());
   const [saving, setSaving] = useState(false);
@@ -46,8 +68,11 @@ export default function AdminCoursesPage() {
       const params = new URLSearchParams();
       if (appliedFilters.LoaiKhoaHocID) params.set("LoaiKhoaHocID", appliedFilters.LoaiKhoaHocID);
       if (appliedFilters.giangvien) params.set("giangvien", appliedFilters.giangvien);
-      if (appliedFilters.from) params.set("from", appliedFilters.from);
-      if (appliedFilters.to) params.set("to", appliedFilters.to);
+      if (appliedFilters.CoSoId) params.set("CoSoId", appliedFilters.CoSoId);
+      if (appliedFilters.year) {
+        params.set("year", appliedFilters.year);
+        if (appliedFilters.month) params.set("month", appliedFilters.month);
+      }
       const query = params.toString() ? `?${params.toString()}` : "";
       const res = await fetch(`${API_BASE}/api/admin/courses${query}`, { headers: { Authorization: `Bearer ${token}` } });
       const json = await res.json();
@@ -84,12 +109,15 @@ export default function AdminCoursesPage() {
           if (!teacherMap.has(t.courseTeacherId)) teacherMap.set(t.courseTeacherId, t);
         });
         setTeachers(Array.from(teacherMap.values()));
-        const roomList = (Array.isArray(facilitiesJson) ? facilitiesJson : [])
+        const facList = Array.isArray(facilitiesJson) ? facilitiesJson : [];
+        setFacilities(facList.map((f) => ({ _id: f._id, Tencoso: f.Tencoso || "" })).filter((f) => f._id));
+        const roomList = facList
           .flatMap((f) =>
             (Array.isArray(f.phongHocList) ? f.phongHocList : []).map((r) => ({
               _id: r._id,
               TenPhong: r.TenPhong,
               CoSoName: f.Tencoso,
+              coSoId: f._id,
             }))
           )
           .filter((r) => r._id);
@@ -112,6 +140,7 @@ export default function AdminCoursesPage() {
     if (!formData.LoaiKhoaHocID) return notify.warning("Vui lòng chọn loại khóa học");
     if (!formData.ngaykhaigiang) return notify.warning("Vui lòng chọn ngày khai giảng");
     if (!formData.giangvien) return notify.warning("Vui lòng chọn giảng viên");
+    if (!formData.CoSoId) return notify.warning("Vui lòng chọn cơ sở");
     if (!Array.isArray(formData.lichHoc) || formData.lichHoc.length === 0) {
       return notify.warning("Vui lòng thêm ít nhất 1 lịch học");
     }
@@ -143,6 +172,7 @@ export default function AdminCoursesPage() {
       setSaving(true);
       const payload = {
         tenkhoahoc: formData.tenkhoahoc.trim(),
+        CoSoId: formData.CoSoId,
         LoaiKhoaHocID: formData.LoaiKhoaHocID,
         ngaykhaigiang: formData.ngaykhaigiang,
         giangvien: formData.giangvien,
@@ -238,10 +268,10 @@ export default function AdminCoursesPage() {
           <StatCard title="Chưa khai giảng" value={stats.notStarted} />
           <StatCard title="Đã có lịch học" value={stats.hasSchedule} />
         </div>
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 flex flex-col lg:flex-row gap-3">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 flex flex-col lg:flex-row flex-wrap gap-3 items-end">
           <InputField
             type="select"
-            containerClassName="flex-1"
+            containerClassName="flex-1 min-w-[10rem]"
             name="LoaiKhoaHocID"
             value={filters.LoaiKhoaHocID}
             onChange={(e) => setFilters((p) => ({ ...p, LoaiKhoaHocID: e.target.value }))}
@@ -252,7 +282,7 @@ export default function AdminCoursesPage() {
           />
           <InputField
             type="select"
-            containerClassName="flex-1"
+            containerClassName="flex-1 min-w-[10rem]"
             name="giangvien"
             value={filters.giangvien}
             onChange={(e) => setFilters((p) => ({ ...p, giangvien: e.target.value }))}
@@ -262,20 +292,40 @@ export default function AdminCoursesPage() {
             ]}
           />
           <InputField
-            type="date"
-            name="from"
-            value={filters.from}
-            onChange={(e) => setFilters((p) => ({ ...p, from: e.target.value }))}
+            type="select"
             containerClassName="flex-1 min-w-[10rem]"
+            name="filterCoSoId"
+            value={filters.CoSoId}
+            onChange={(e) => setFilters((p) => ({ ...p, CoSoId: e.target.value }))}
+            options={[
+              { value: "", label: "Tất cả cơ sở" },
+              ...(facilities || []).map((f, idx) => ({
+                value: String(f._id || idx),
+                label: f.Tencoso || "Cơ sở",
+              })),
+            ]}
           />
           <InputField
-            type="date"
-            name="to"
-            value={filters.to}
-            onChange={(e) => setFilters((p) => ({ ...p, to: e.target.value }))}
-            containerClassName="flex-1 min-w-[10rem]"
+            type="select"
+            containerClassName="w-full sm:w-auto min-w-[8rem]"
+            name="filterYear"
+            value={filters.year}
+            onChange={(e) => {
+              const v = e.target.value;
+              setFilters((p) => ({ ...p, year: v, month: v ? p.month : "" }));
+            }}
+            options={yearFilterOptions}
           />
-          <button className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700" onClick={() => fetchCourses()}>Lọc</button>
+          <InputField
+            type="select"
+            containerClassName="w-full sm:w-auto min-w-[9rem]"
+            name="filterMonth"
+            value={filters.month}
+            disabled={!filters.year}
+            onChange={(e) => setFilters((p) => ({ ...p, month: e.target.value }))}
+            options={MONTH_FILTER_OPTIONS}
+          />
+          <button className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 shrink-0" onClick={() => fetchCourses()}>Lọc</button>
           <button className="px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700" onClick={openCreateModal}>Thêm khóa học</button>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-x-auto">
@@ -284,6 +334,7 @@ export default function AdminCoursesPage() {
               <tr>
                 <th className="px-4 py-3">Tên khóa</th>
                 <th className="px-4 py-3">Loại khóa</th>
+                <th className="px-4 py-3">Cơ sở</th>
                 <th className="px-4 py-3">Khai giảng</th>
                 <th className="px-4 py-3">Giảng viên</th>
                 <th className="px-4 py-3">Lịch học</th>
@@ -291,13 +342,14 @@ export default function AdminCoursesPage() {
               </tr>
             </thead>
             <tbody>
-              {loading ? <tr><td colSpan={6} className="px-4 py-8 text-center">Đang tải...</td></tr> : null}
-              {!loading && error ? <tr><td colSpan={6} className="px-4 py-8 text-center text-red-600">{error}</td></tr> : null}
-              {!loading && !error && courses.length === 0 ? <tr><td colSpan={6} className="px-4 py-8 text-center">Chưa có khóa học</td></tr> : null}
+              {loading ? <tr><td colSpan={7} className="px-4 py-8 text-center">Đang tải...</td></tr> : null}
+              {!loading && error ? <tr><td colSpan={7} className="px-4 py-8 text-center text-red-600">{error}</td></tr> : null}
+              {!loading && !error && courses.length === 0 ? <tr><td colSpan={7} className="px-4 py-8 text-center">Chưa có khóa học</td></tr> : null}
               {!loading && !error && courses.map((c) => (
                 <tr key={c._id} className="border-t border-gray-200 dark:border-gray-700">
                   <td className="px-4 py-3 font-medium text-gray-900 dark:text-gray-100">{c.tenkhoahoc}</td>
                   <td className="px-4 py-3">{c.LoaiKhoaHocID?.Tenloai || "-"}</td>
+                  <td className="px-4 py-3">{c.CoSoId?.Tencoso || "-"}</td>
                   <td className="px-4 py-3">{formatDateDdMmYyyy(c.ngaykhaigiang, { empty: "-" })}</td>
                   <td className="px-4 py-3">{c.giangvien?.userId?.hovaten || c.giangvien?.userId?.email || c.giangvien?._id || "-"}</td>
                   <td className="px-4 py-3">
@@ -326,6 +378,7 @@ export default function AdminCoursesPage() {
         setData={setFormData}
         teachers={teachers}
         courseTypes={courseTypes}
+        facilities={facilities}
         rooms={rooms}
         onSubmit={submitCourse}
         onValidate={validateSchedule}
@@ -344,7 +397,11 @@ export default function AdminCoursesPage() {
     </div>
   );
 }
-function CourseModal({ isOpen, onClose, data, setData, teachers, courseTypes, rooms, onSubmit, onValidate, validationResult, saving, validating }) {
+function CourseModal({ isOpen, onClose, data, setData, teachers, courseTypes, facilities, rooms, onSubmit, onValidate, validationResult, saving, validating }) {
+  const roomsForCoSo = useMemo(
+    () => (rooms || []).filter((r) => String(r.coSoId) === String(data.CoSoId)),
+    [rooms, data.CoSoId]
+  );
   if (!isOpen) return null;
   const addSchedule = () => setData((p) => ({ ...p, lichHoc: [...(p.lichHoc || []), { thu: 1, gioBatDau: "18:00", gioKetThuc: "20:00", phonghoc: "" }] }));
   const changeSchedule = (idx, field, value) => setData((p) => {
@@ -421,6 +478,37 @@ function CourseModal({ isOpen, onClose, data, setData, teachers, courseTypes, ro
                 />
                 <p className={fieldHintClass}>Chọn giảng viên chính để hệ thống kiểm tra trùng lịch chính xác hơn.</p>
               </div>
+              <div className="md:col-span-2">
+                <label className={fieldLabelClass}>Cơ sở *</label>
+                <InputField
+                  type="select"
+                  inputClassName={modalInputClass}
+                  name="CoSoId"
+                  value={data.CoSoId}
+                  onChange={(e) => {
+                    const nextCoSo = e.target.value;
+                    setData((p) => ({
+                      ...p,
+                      CoSoId: nextCoSo,
+                      lichHoc: (p.lichHoc || []).map((slot) => {
+                        if (!nextCoSo || !slot.phonghoc) return { ...slot, phonghoc: nextCoSo ? slot.phonghoc : "" };
+                        const ok = (rooms || []).some(
+                          (r) => String(r._id) === String(slot.phonghoc) && String(r.coSoId) === String(nextCoSo)
+                        );
+                        return { ...slot, phonghoc: ok ? slot.phonghoc : "" };
+                      }),
+                    }));
+                  }}
+                  options={[
+                    { value: "", label: "Chọn cơ sở" },
+                    ...(facilities || []).map((f, idx) => ({
+                      value: f._id || `cs-${idx}`,
+                      label: f.Tencoso || "Cơ sở",
+                    })),
+                  ]}
+                />
+                <p className={fieldHintClass}>Chỉ hiển thị phòng thuộc cơ sở đã chọn trong từng ca học.</p>
+              </div>
             </div>
             <div className="border-t-2 border-gray-200 pt-4 dark:border-gray-700">
               <div className="flex justify-between items-center mb-2">
@@ -474,8 +562,8 @@ function CourseModal({ isOpen, onClose, data, setData, teachers, courseTypes, ro
                         value={slot.phonghoc}
                         onChange={(e) => changeSchedule(idx, "phonghoc", e.target.value)}
                         options={[
-                          { value: "", label: "Chọn phòng học" },
-                          ...(rooms || []).map((r, rIdx) => ({
+                          { value: "", label: data.CoSoId ? "Chọn phòng học" : "Chọn cơ sở trước" },
+                          ...roomsForCoSo.map((r, rIdx) => ({
                             value: r._id || `room-${rIdx}`,
                             label: `${r.TenPhong} - ${r.CoSoName}`,
                           })),
@@ -536,6 +624,7 @@ function StatCard({ title, value }) {
 }
 function buildValidatePayload(formData) {
   return {
+    CoSoId: formData.CoSoId,
     LoaiKhoaHocID: formData.LoaiKhoaHocID,
     ngaykhaigiang: formData.ngaykhaigiang,
     giangvien: formData.giangvien,

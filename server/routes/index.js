@@ -76,6 +76,10 @@ router.use("/admin/practice-exercises", practiceExercisesAdminRouter);
 const kioskKeysAdminRouter = require('./admin/kioskKeysRoutes');
 router.use('/admin/kiosk-keys', kioskKeysAdminRouter);
 
+/* ================== DASHBOARD (ADMIN) ================== */
+const dashboardAdminRouter = require("./admin/dashboardRoutes");
+router.use("/admin/dashboard", dashboardAdminRouter);
+
 /* ================== KIOSK (điểm danh khuôn mặt) ================== */
 const kioskRouter = require("./kioskRoutes");
 router.use("/kiosk", kioskRouter);

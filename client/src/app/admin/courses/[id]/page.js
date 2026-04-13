@@ -31,6 +31,7 @@ export default function AdminCourseDetailPage() {
   const [lessons, setLessons] = useState([]);
   const [teachers, setTeachers] = useState([]);
   const [rooms, setRooms] = useState([]);
+  const [facilities, setFacilities] = useState([]);
   const [selectedHocVienId, setSelectedHocVienId] = useState("");
   const [removeEnrollmentId, setRemoveEnrollmentId] = useState("");
   const [studentModalOpen, setStudentModalOpen] = useState(false);
@@ -57,6 +58,7 @@ export default function AdminCourseDetailPage() {
 
   const [formData, setFormData] = useState({
     tenkhoahoc: "",
+    CoSoId: "",
     LoaiKhoaHocID: "",
     ngaykhaigiang: "",
     giangvien: "",
@@ -116,18 +118,24 @@ export default function AdminCourseDetailPage() {
           .map((t) => ({ ...t, courseTeacherId: t?.giangVienInfo?._id || "" }))
           .filter((t) => t.courseTeacherId)
       );
+      const facList = Array.isArray(facilitiesJson) ? facilitiesJson : [];
+      setFacilities(facList.map((f) => ({ _id: f._id, Tencoso: f.Tencoso || "" })).filter((f) => f._id));
       setRooms(
-        (Array.isArray(facilitiesJson) ? facilitiesJson : []).flatMap((f) =>
+        facList.flatMap((f) =>
           (Array.isArray(f.phongHocList) ? f.phongHocList : []).map((r) => ({
             _id: r._id,
             TenPhong: r.TenPhong,
             CoSoName: f.Tencoso,
+            coSoId: f._id,
           }))
         )
       );
 
+      const coSoFromApi = c.CoSoId?._id || c.CoSoId || "";
+
       setFormData({
         tenkhoahoc: c.tenkhoahoc || "",
+        CoSoId: coSoFromApi ? String(coSoFromApi) : "",
         LoaiKhoaHocID: c.LoaiKhoaHocID?._id || "",
         ngaykhaigiang: toDateInputValue(c.ngaykhaigiang),
         giangvien: c.giangvien?._id || "",
@@ -166,10 +174,15 @@ export default function AdminCourseDetailPage() {
 
   const saveCourse = async (e) => {
     e.preventDefault();
+    if (!formData.CoSoId) {
+      notify.warning("Vui lòng chọn cơ sở");
+      return;
+    }
     try {
       setSaving(true);
       const payload = {
         tenkhoahoc: formData.tenkhoahoc.trim(),
+        CoSoId: formData.CoSoId,
         LoaiKhoaHocID: formData.LoaiKhoaHocID,
         ngaykhaigiang: formData.ngaykhaigiang,
         giangvien: formData.giangvien,
@@ -191,6 +204,11 @@ export default function AdminCourseDetailPage() {
       setSaving(false);
     }
   };
+
+  const roomsForCoSo = useMemo(
+    () => (rooms || []).filter((r) => String(r.coSoId) === String(formData.CoSoId)),
+    [rooms, formData.CoSoId]
+  );
 
   const availableStudents = useMemo(() => {
     const enrolled = new Set(students.map((s) => String(s.hocvienId)));
@@ -276,7 +294,12 @@ export default function AdminCourseDetailPage() {
   };
 
   const openCreateSessionModal = () => {
-    const defaultRoom = rooms[0]?._id || "";
+    if (!formData.CoSoId) {
+      notify.warning("Vui lòng chọn cơ sở trong form khóa học (và lưu nếu cần) trước khi thêm buổi học.");
+      return;
+    }
+    const roomsInCoSo = rooms.filter((r) => String(r.coSoId) === String(formData.CoSoId));
+    const defaultRoom = roomsInCoSo[0]?._id || "";
     const defaultLesson = lessons[0]?._id || "";
     const today = toDateInputValue(new Date());
     setSessionModal({
@@ -448,6 +471,36 @@ export default function AdminCourseDetailPage() {
               ]}
             />
           </div>
+          <div className="lg:col-span-12 space-y-1">
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Cơ sở</label>
+            <InputField
+              type="select"
+              inputClassName={FIELD_CLASS}
+              name="CoSoId"
+              value={formData.CoSoId}
+              onChange={(e) => {
+                const nextCoSo = e.target.value;
+                setFormData((p) => ({
+                  ...p,
+                  CoSoId: nextCoSo,
+                  lichHoc: (p.lichHoc || []).map((slot) => {
+                    if (!nextCoSo || !slot.phonghoc) return { ...slot, phonghoc: nextCoSo ? slot.phonghoc : "" };
+                    const ok = rooms.some(
+                      (r) => String(r._id) === String(slot.phonghoc) && String(r.coSoId) === String(nextCoSo)
+                    );
+                    return { ...slot, phonghoc: ok ? slot.phonghoc : "" };
+                  }),
+                }));
+              }}
+              options={[
+                { value: "", label: "Chọn cơ sở" },
+                ...(facilities || []).map((f, idx) => ({
+                  value: String(f._id || idx),
+                  label: f.Tencoso || "Cơ sở",
+                })),
+              ]}
+            />
+          </div>
         </div>
 
         <div className="space-y-2 pt-2 border-t border-gray-200 dark:border-gray-700">
@@ -486,8 +539,8 @@ export default function AdminCourseDetailPage() {
                 value={slot.phonghoc}
                 onChange={(e) => updateSchedule(idx, "phonghoc", e.target.value)}
                 options={[
-                  { value: "", label: "Chọn phòng" },
-                  ...(rooms || []).map((r, i) => ({ value: r._id || i, label: `${r.TenPhong} - ${r.CoSoName}` })),
+                  { value: "", label: formData.CoSoId ? "Chọn phòng" : "Chọn cơ sở trước" },
+                  ...roomsForCoSo.map((r, i) => ({ value: r._id || i, label: `${r.TenPhong} - ${r.CoSoName}` })),
                 ]}
               />
               <button type="button" className="px-3 py-2 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 rounded-lg border border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/30" onClick={() => removeSchedule(idx)}>Xóa</button>
@@ -757,8 +810,8 @@ export default function AdminCourseDetailPage() {
                   onChange={(e) => setSessionModal((p) => ({ ...p, phonghoc: e.target.value }))}
                   required
                   options={[
-                    { value: "", label: "Chọn phòng học" },
-                    ...(rooms || []).map((r) => ({
+                    { value: "", label: formData.CoSoId ? "Chọn phòng học" : "Chọn cơ sở trong form khóa trước" },
+                    ...roomsForCoSo.map((r) => ({
                       value: r._id,
                       label: `${r.TenPhong} - ${r.CoSoName}`,
                     })),

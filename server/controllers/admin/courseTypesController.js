@@ -1,5 +1,31 @@
 const LoaiKhoaHoc = require("../../models/LoaiKhoaHoc");
 const BaiHoc = require("../../models/BaiHoc");
+const {
+  clampInsertPosition,
+  insertShiftsOthers,
+  moveShiftsOthers,
+  countInsertAffected,
+  countMoveAffected,
+  applyInsertOrder,
+  applyMoveOrder,
+  fetchLessonsLean,
+} = require("../../utils/lessonOrder");
+
+function isConfirmReorder(body) {
+  return body && (body.confirmReorder === true || body.confirmReorder === "true");
+}
+
+async function populateLessonsList(courseTypeId) {
+  return BaiHoc.find({ LoaiKhoaHoc: courseTypeId })
+    .populate("file")
+    .populate("files")
+    .sort({ thutu: 1, createdAt: 1 })
+    .lean();
+}
+
+async function populateOneLesson(id) {
+  return BaiHoc.findById(id).populate("file").populate("files").lean();
+}
 
 // ===== Loại khóa học (Course Types) =====
 
@@ -127,18 +153,38 @@ const createLesson = async (req, res) => {
       return res.status(400).json({ success: false, message: "Thứ tự phải là số nguyên từ 1 đến 9999" });
     }
 
+    const lessons = await fetchLessonsLean(courseTypeId);
+    const validP = clampInsertPosition(lessons, order);
+    const needsConfirm = insertShiftsOthers(lessons, validP);
+
+    if (needsConfirm && !isConfirmReorder(req.body)) {
+      return res.status(409).json({
+        success: false,
+        code: "REORDER_REQUIRED",
+        message:
+          "Số thứ tự này đã có trong hệ thống — các bài từ vị trí này trở đi sẽ được đẩy về sau (thứ tự +1). Gửi lại với confirmReorder: true nếu đồng ý.",
+        affectedCount: countInsertAffected(lessons, validP),
+        clampedThuTu: validP,
+      });
+    }
+
     const normalizedFiles = Array.isArray(files) ? files.filter(Boolean) : [];
-    const created = await BaiHoc.create({
-      LoaiKhoaHoc: courseTypeId,
+    const createPayload = {
       tenbai: resolvedName,
-      thutu: order,
       mota: (mota || "").trim(),
       file: file || undefined,
       files: normalizedFiles.length > 0 ? normalizedFiles : undefined,
-    });
+    };
 
-    const populated = await BaiHoc.findById(created._id).populate("file").populate("files").lean();
-    res.status(201).json({ success: true, message: "Tạo bài học thành công", data: populated || created });
+    const created = await applyInsertOrder(courseTypeId, validP, createPayload);
+    const lesson = await populateOneLesson(created._id);
+    const allLessons = await populateLessonsList(courseTypeId);
+
+    res.status(201).json({
+      success: true,
+      message: "Tạo bài học thành công",
+      data: { lesson: lesson || created, lessons: allLessons },
+    });
   } catch (error) {
     console.error("Lỗi tạo bài học:", error);
     res.status(500).json({ success: false, message: "Lỗi máy chủ" });
@@ -158,22 +204,43 @@ const updateLesson = async (req, res) => {
       return res.status(400).json({ success: false, message: "Thứ tự phải là số nguyên từ 1 đến 9999" });
     }
 
-    const normalizedFiles = Array.isArray(files) ? files.filter(Boolean) : [];
-    const updated = await BaiHoc.findOneAndUpdate(
-      { _id: lessonId, LoaiKhoaHoc: courseTypeId },
-      {
-        tenbai: resolvedName,
-        thutu: order,
-        mota: (mota || "").trim(),
-        file: file || undefined,
-        files: normalizedFiles.length > 0 ? normalizedFiles : undefined,
-      },
-      { new: true, runValidators: true }
-    );
+    const existing = await BaiHoc.findOne({ _id: lessonId, LoaiKhoaHoc: courseTypeId }).lean();
+    if (!existing) return res.status(404).json({ success: false, message: "Không tìm thấy bài học" });
 
-    if (!updated) return res.status(404).json({ success: false, message: "Không tìm thấy bài học" });
-    const populated = await BaiHoc.findById(updated._id).populate("file").populate("files").lean();
-    res.status(200).json({ success: true, message: "Cập nhật bài học thành công", data: populated || updated });
+    const lessons = await fetchLessonsLean(courseTypeId);
+    const k = lessons.length;
+    const newT = Math.min(Math.max(1, order), k);
+    const oldT = Number(existing.thutu);
+
+    const needsConfirm = moveShiftsOthers(lessons, lessonId, oldT, newT);
+    if (needsConfirm && !isConfirmReorder(req.body)) {
+      return res.status(409).json({
+        success: false,
+        code: "REORDER_REQUIRED",
+        message:
+          "Thay đổi thứ tự sẽ làm dịch các bài học khác trong danh sách. Gửi lại với confirmReorder: true nếu đồng ý.",
+        affectedCount: countMoveAffected(lessons, lessonId, oldT, newT),
+        clampedThuTu: newT,
+      });
+    }
+
+    const normalizedFiles = Array.isArray(files) ? files.filter(Boolean) : [];
+    const patch = {
+      tenbai: resolvedName,
+      mota: (mota || "").trim(),
+      file: file || undefined,
+      files: normalizedFiles.length > 0 ? normalizedFiles : undefined,
+    };
+
+    await applyMoveOrder(courseTypeId, lessonId, oldT, newT, patch);
+    const lesson = await populateOneLesson(lessonId);
+    const allLessons = await populateLessonsList(courseTypeId);
+
+    res.status(200).json({
+      success: true,
+      message: "Cập nhật bài học thành công",
+      data: { lesson, lessons: allLessons },
+    });
   } catch (error) {
     console.error("Lỗi cập nhật bài học:", error);
     res.status(500).json({ success: false, message: "Lỗi máy chủ" });
@@ -204,4 +271,3 @@ module.exports = {
   updateLesson,
   deleteLesson,
 };
-

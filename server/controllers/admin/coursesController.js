@@ -10,6 +10,7 @@ const ThamGiaBuoiHoc = require("../../models/ThamGiaBuoiHoc");
 const HocBuDeXuat = require("../../models/HocBuDeXuat");
 const DangKyKhoaHoc = require("../../models/DangKyKhoaHoc");
 const HocVien = require("../../models/HocVien");
+const Coso = require("../../models/Coso");
 
 function asObjectId(value) {
   if (!value) return null;
@@ -207,6 +208,87 @@ async function ensureRefsExist({ LoaiKhoaHocID, giangvien, lichHocItems }) {
   if (roomsCount !== roomIds.length) return { ok: false, message: "Có ít nhất một phòng học trong lịch không tồn tại hoặc đã bị xóa." };
 
   return { ok: true };
+}
+
+/** Mọi phòng trong lịch phải thuộc đúng cơ sở đã chọn; cơ sở phải tồn tại và đang hoạt động. */
+async function ensureCoSoAndRoomsMatch(coSoId, lichHocItems) {
+  const cid = asObjectId(coSoId);
+  if (!cid) {
+    return { ok: false, message: "Vui lòng chọn cơ sở cho khóa học." };
+  }
+  const coso = await Coso.findById(cid).select("_id trangThaiHoatDong").lean();
+  if (!coso) return { ok: false, message: "Cơ sở được chọn không tồn tại." };
+  if (coso.trangThaiHoatDong === false) {
+    return { ok: false, message: "Cơ sở đã ngừng hoạt động, không thể dùng cho khóa học." };
+  }
+
+  const roomIds = [...new Set(lichHocItems.map((it) => String(asObjectId(it.phonghoc))))].map(
+    (s) => new mongoose.Types.ObjectId(s)
+  );
+  const rooms = await Phonghoc.find({ _id: { $in: roomIds } }).select("_id CoSoId").lean();
+  if (rooms.length !== roomIds.length) {
+    return { ok: false, message: "Có ít nhất một phòng học trong lịch không tồn tại hoặc đã bị xóa." };
+  }
+  const expect = String(cid);
+  for (const r of rooms) {
+    if (String(r.CoSoId) !== expect) {
+      return { ok: false, message: "Mọi phòng trong lịch phải thuộc cơ sở đã chọn." };
+    }
+  }
+  return { ok: true };
+}
+
+async function inferCoSoFromLichHocItems(lichHocItems) {
+  if (!Array.isArray(lichHocItems) || lichHocItems.length === 0) return null;
+  const roomIds = [...new Set(lichHocItems.map((it) => String(asObjectId(it.phonghoc))))].map(
+    (s) => new mongoose.Types.ObjectId(s)
+  );
+  if (roomIds.length === 0) return null;
+  const rooms = await Phonghoc.find({ _id: { $in: roomIds } }).select("CoSoId").lean();
+  if (rooms.length !== roomIds.length) return null;
+  const first = String(rooms[0].CoSoId);
+  if (rooms.some((r) => String(r.CoSoId) !== first)) return null;
+  return asObjectId(first);
+}
+
+async function resolveCourseCoSoIdForSession(courseLean) {
+  const direct = asObjectId(courseLean.CoSoId);
+  if (direct) return direct;
+  return inferCoSoFromLichHocItems(courseLean.lichHoc || []);
+}
+
+async function ensureSessionRoomMatchesCourseCoSo(courseLean, roomId) {
+  const expectedCoSo = await resolveCourseCoSoIdForSession(courseLean);
+  if (!expectedCoSo) {
+    return {
+      ok: false,
+      message:
+        "Khóa học chưa gán cơ sở — hãy cập nhật khóa học, chọn cơ sở và lưu lịch trước khi thêm/sửa buổi học.",
+    };
+  }
+  const room = await Phonghoc.findById(roomId).select("CoSoId").lean();
+  if (!room) return { ok: false, message: "Phòng học không tồn tại." };
+  if (String(room.CoSoId) !== String(expectedCoSo)) {
+    return { ok: false, message: "Phòng học phải thuộc cùng cơ sở với khóa học." };
+  }
+  return { ok: true };
+}
+
+async function attachInferredCoSoToCourseLean(item) {
+  if (!item || item.CoSoId) return item;
+  const lh = item.lichHoc;
+  if (!Array.isArray(lh) || lh.length === 0) return item;
+  const phId = asObjectId(lh[0].phonghoc);
+  if (!phId) return item;
+  const ph = await Phonghoc.findById(phId).select("CoSoId").lean();
+  if (!ph?.CoSoId) return item;
+  const inf = await Coso.findById(ph.CoSoId).select("Tencoso").lean();
+  if (inf) {
+    item.CoSoId = { _id: inf._id, Tencoso: inf.Tencoso };
+  } else {
+    item.CoSoId = ph.CoSoId;
+  }
+  return item;
 }
 
 async function computeCourseCapacityFromSchedule(lichHocItems) {
@@ -458,11 +540,29 @@ function buildProposedSessionForConflict({ ngayhoc, gioBatDau, gioKetThuc, phong
 // GET /api/admin/courses
 exports.listCourses = async (req, res) => {
   try {
-    const { LoaiKhoaHocID, giangvien, from, to } = req.query;
+    const { LoaiKhoaHocID, giangvien, from, to, CoSoId, year, month } = req.query;
     const query = {};
     if (LoaiKhoaHocID && mongoose.Types.ObjectId.isValid(LoaiKhoaHocID)) query.LoaiKhoaHocID = LoaiKhoaHocID;
     if (giangvien && mongoose.Types.ObjectId.isValid(giangvien)) query.giangvien = giangvien;
-    if (from || to) {
+    if (CoSoId && mongoose.Types.ObjectId.isValid(CoSoId)) query.CoSoId = new mongoose.Types.ObjectId(CoSoId);
+
+    const yearNum = year !== undefined && String(year).trim() !== "" ? parseInt(String(year), 10) : NaN;
+    const monthNum = month !== undefined && String(month).trim() !== "" ? parseInt(String(month), 10) : NaN;
+
+    if (Number.isFinite(yearNum) && yearNum >= 1970 && yearNum <= 2100) {
+      query.ngaykhaigiang = {};
+      if (Number.isFinite(monthNum) && monthNum >= 1 && monthNum <= 12) {
+        const start = new Date(yearNum, monthNum - 1, 1, 0, 0, 0, 0);
+        const end = new Date(yearNum, monthNum, 1, 0, 0, 0, 0);
+        query.ngaykhaigiang.$gte = start;
+        query.ngaykhaigiang.$lt = end;
+      } else {
+        const start = new Date(yearNum, 0, 1, 0, 0, 0, 0);
+        const end = new Date(yearNum + 1, 0, 1, 0, 0, 0, 0);
+        query.ngaykhaigiang.$gte = start;
+        query.ngaykhaigiang.$lt = end;
+      }
+    } else if (from || to) {
       query.ngaykhaigiang = {};
       if (from) query.ngaykhaigiang.$gte = new Date(from);
       if (to) query.ngaykhaigiang.$lte = new Date(to);
@@ -470,6 +570,7 @@ exports.listCourses = async (req, res) => {
 
     const list = await KhoaHoc.find(query)
       .sort({ createdAt: -1 })
+      .populate("CoSoId", "Tencoso")
       .populate("LoaiKhoaHocID", "Tenloai")
       .populate({
         path: "giangvien",
@@ -491,6 +592,7 @@ exports.getCourseById = async (req, res) => {
     const courseId = asObjectId(req.params.id);
     if (!courseId) return res.status(400).json({ success: false, message: "Tham số định danh không hợp lệ." });
     const item = await KhoaHoc.findById(courseId)
+      .populate("CoSoId", "Tencoso")
       .populate("LoaiKhoaHocID", "Tenloai mota ChungChi")
       .populate({
         path: "giangvien",
@@ -499,6 +601,8 @@ exports.getCourseById = async (req, res) => {
       })
       .lean();
     if (!item) return res.status(404).json({ success: false, message: "Không tìm thấy khóa học" });
+
+    await attachInferredCoSoToCourseLean(item);
 
     const buoiCount = await BuoiHoc.countDocuments({ KhoaHocID: item._id });
     const { sessions, reasonMap } = await getSessionLockReasonMap(item._id);
@@ -517,7 +621,7 @@ exports.getCourseById = async (req, res) => {
 // POST /api/admin/courses/validate-schedule
 exports.validateSchedule = async (req, res) => {
   try {
-    const { LoaiKhoaHocID, ngaykhaigiang, giangvien, lichHoc, ignoreCourseId } = req.body;
+    const { LoaiKhoaHocID, ngaykhaigiang, giangvien, lichHoc, ignoreCourseId, CoSoId: bodyCoSoId } = req.body;
 
     const courseTypeId = asObjectId(LoaiKhoaHocID);
     const teacherId = await resolveTeacherId(giangvien);
@@ -533,6 +637,14 @@ exports.validateSchedule = async (req, res) => {
 
     const refs = await ensureRefsExist({ LoaiKhoaHocID: courseTypeId, giangvien: teacherId, lichHocItems });
     if (!refs.ok) return res.status(400).json({ success: false, message: refs.message });
+
+    let coSoForValidate = asObjectId(bodyCoSoId);
+    if (!coSoForValidate) coSoForValidate = await inferCoSoFromLichHocItems(lichHocItems);
+    if (!coSoForValidate) {
+      return res.status(400).json({ success: false, message: "Vui lòng chọn cơ sở cho khóa học." });
+    }
+    const cosoCheck = await ensureCoSoAndRoomsMatch(coSoForValidate, lichHocItems);
+    if (!cosoCheck.ok) return res.status(400).json({ success: false, message: cosoCheck.message });
     const soHocVienToiDa = await computeCourseCapacityFromSchedule(lichHocItems);
     if (!soHocVienToiDa) {
       return res.status(400).json({ success: false, message: "Không thể xác định sức chứa tối đa từ danh sách phòng học" });
@@ -579,7 +691,7 @@ exports.validateSchedule = async (req, res) => {
 // POST /api/admin/courses
 exports.createCourse = async (req, res) => {
   try {
-    const { LoaiKhoaHocID, tenkhoahoc, ngaykhaigiang, giangvien, lichHoc } = req.body;
+    const { LoaiKhoaHocID, tenkhoahoc, ngaykhaigiang, giangvien, lichHoc, CoSoId: bodyCoSoId } = req.body;
 
     const courseTypeId = asObjectId(LoaiKhoaHocID);
     const teacherId = await resolveTeacherId(giangvien);
@@ -596,6 +708,13 @@ exports.createCourse = async (req, res) => {
 
     const refs = await ensureRefsExist({ LoaiKhoaHocID: courseTypeId, giangvien: teacherId, lichHocItems });
     if (!refs.ok) return res.status(400).json({ success: false, message: refs.message });
+
+    const coSoOid = asObjectId(bodyCoSoId);
+    if (!coSoOid) {
+      return res.status(400).json({ success: false, message: "Vui lòng chọn cơ sở cho khóa học." });
+    }
+    const cosoCheckCreate = await ensureCoSoAndRoomsMatch(coSoOid, lichHocItems);
+    if (!cosoCheckCreate.ok) return res.status(400).json({ success: false, message: cosoCheckCreate.message });
 
     const soHocVienToiDa = await computeCourseCapacityFromSchedule(lichHocItems);
     if (!soHocVienToiDa) {
@@ -619,6 +738,7 @@ exports.createCourse = async (req, res) => {
     }
 
     const created = await KhoaHoc.create({
+      CoSoId: coSoOid,
       LoaiKhoaHocID: courseTypeId,
       tenkhoahoc: name,
       ngaykhaigiang: start,
@@ -655,6 +775,7 @@ exports.createCourse = async (req, res) => {
     }
 
     const populated = await KhoaHoc.findById(created._id)
+      .populate("CoSoId", "Tencoso")
       .populate("LoaiKhoaHocID", "Tenloai")
       .populate({
         path: "giangvien",
@@ -685,6 +806,7 @@ exports.updateCourse = async (req, res) => {
       ngaykhaigiang = existingCourse.ngaykhaigiang,
       giangvien = existingCourse.giangvien,
       lichHoc = existingCourse.lichHoc,
+      CoSoId: bodyCoSoId,
     } = req.body || {};
 
     const courseTypeId = asObjectId(LoaiKhoaHocID);
@@ -703,6 +825,17 @@ exports.updateCourse = async (req, res) => {
 
     const refs = await ensureRefsExist({ LoaiKhoaHocID: courseTypeId, giangvien: teacherId, lichHocItems });
     if (!refs.ok) return res.status(400).json({ success: false, message: refs.message });
+
+    let resolvedCoSoId = asObjectId(bodyCoSoId) || asObjectId(existingCourse.CoSoId);
+    if (!resolvedCoSoId) {
+      resolvedCoSoId = await inferCoSoFromLichHocItems(lichHocItems);
+    }
+    if (!resolvedCoSoId) {
+      return res.status(400).json({ success: false, message: "Vui lòng chọn cơ sở cho khóa học." });
+    }
+    const cosoCheckUpdate = await ensureCoSoAndRoomsMatch(resolvedCoSoId, lichHocItems);
+    if (!cosoCheckUpdate.ok) return res.status(400).json({ success: false, message: cosoCheckUpdate.message });
+
     const soHocVienToiDa = await computeCourseCapacityFromSchedule(lichHocItems);
     if (!soHocVienToiDa) {
       return res.status(400).json({ success: false, message: "Không thể xác định sức chứa tối đa từ danh sách phòng học" });
@@ -755,6 +888,7 @@ exports.updateCourse = async (req, res) => {
       }
 
       // Cập nhật khóa học
+      existingCourse.CoSoId = resolvedCoSoId;
       existingCourse.LoaiKhoaHocID = courseTypeId;
       existingCourse.tenkhoahoc = name;
       existingCourse.ngaykhaigiang = start;
@@ -806,6 +940,7 @@ exports.updateCourse = async (req, res) => {
         if (bulkOps.length > 0) await BuoiHoc.bulkWrite(bulkOps, { ordered: true });
       }
     } else {
+      existingCourse.CoSoId = resolvedCoSoId;
       existingCourse.tenkhoahoc = name;
       existingCourse.giangvien = teacherId;
       existingCourse.soHocVienToiDa = soHocVienToiDa;
@@ -813,6 +948,7 @@ exports.updateCourse = async (req, res) => {
     }
 
     const populated = await KhoaHoc.findById(courseId)
+      .populate("CoSoId", "Tencoso")
       .populate("LoaiKhoaHocID", "Tenloai")
       .populate({
         path: "giangvien",
@@ -942,7 +1078,7 @@ exports.addCourseSession = async (req, res) => {
     const courseId = asObjectId(req.params.id);
     if (!courseId) return res.status(400).json({ success: false, message: "Tham số định danh không hợp lệ." });
 
-    const course = await KhoaHoc.findById(courseId).select("_id giangvien").lean();
+    const course = await KhoaHoc.findById(courseId).select("_id giangvien CoSoId lichHoc").lean();
     if (!course) return res.status(404).json({ success: false, message: "Không tìm thấy khóa học" });
 
     const { ngayhoc, gioBatDau, gioKetThuc, phonghoc, BaiHocID } = req.body || {};
@@ -962,6 +1098,9 @@ exports.addCourseSession = async (req, res) => {
       });
     const dateOnly = startOfDayLocal(ngayhoc);
     if (Number.isNaN(dateOnly.getTime())) return res.status(400).json({ success: false, message: "Ngày diễn ra buổi học không hợp lệ." });
+
+    const roomCoSoCheck = await ensureSessionRoomMatchesCourseCoSo(course, roomId);
+    if (!roomCoSoCheck.ok) return res.status(400).json({ success: false, message: roomCoSoCheck.message });
 
     const proposed = buildProposedSessionForConflict({ ngayhoc: dateOnly, gioBatDau, gioKetThuc, phonghoc: roomId, BaiHocID: lessonId });
     const conflicts = await findScheduleConflicts({ proposedSessions: [proposed], giangvienId: asObjectId(course.giangvien), ignoreCourseId: courseId });
@@ -995,7 +1134,7 @@ exports.updateCourseSession = async (req, res) => {
     const sessionId = asObjectId(req.params.sessionId);
     if (!courseId || !sessionId) return res.status(400).json({ success: false, message: "Tham số định danh không hợp lệ." });
 
-    const course = await KhoaHoc.findById(courseId).select("_id giangvien").lean();
+    const course = await KhoaHoc.findById(courseId).select("_id giangvien CoSoId lichHoc").lean();
     if (!course) return res.status(404).json({ success: false, message: "Không tìm thấy khóa học" });
 
     const lockMap = await getSessionLockReasonMap(courseId);
@@ -1019,6 +1158,9 @@ exports.updateCourseSession = async (req, res) => {
     if (p.hh * 60 + p.mm >= e.hh * 60 + e.mm) {
       return res.status(400).json({ success: false, message: "Giờ bắt đầu phải sớm hơn giờ kết thúc." });
     }
+
+    const roomCoSoCheckUpd = await ensureSessionRoomMatchesCourseCoSo(course, roomId);
+    if (!roomCoSoCheckUpd.ok) return res.status(400).json({ success: false, message: roomCoSoCheckUpd.message });
 
     const proposed = buildProposedSessionForConflict({
       ngayhoc: nextDate,

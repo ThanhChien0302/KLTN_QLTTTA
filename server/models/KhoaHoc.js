@@ -28,6 +28,10 @@ const lichHocItemSchema = new mongoose.Schema(
 );
 
 const khoaHocSchema = new mongoose.Schema({
+  CoSoId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Coso',
+  },
   LoaiKhoaHocID: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'LoaiKhoaHoc',
@@ -87,6 +91,7 @@ const khoaHocSchema = new mongoose.Schema({
   timestamps: true
 });
 
+khoaHocSchema.index({ CoSoId: 1 });
 khoaHocSchema.index({ LoaiKhoaHocID: 1 });
 khoaHocSchema.index({ giangvien: 1 });
 khoaHocSchema.index({ ngaykhaigiang: 1 });

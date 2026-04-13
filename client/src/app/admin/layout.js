@@ -21,11 +21,14 @@ import {
   FiCamera,
   FiKey,
 } from "react-icons/fi";
+import { useAdminHotkeys } from "./useAdminHotkeys";
 
 export default function AdminLayout({ children }) {
   const { user, loading, isAuthenticated, isAdmin, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+
+  useAdminHotkeys(router);
 
   // State quản lý Dark Mode
   const [darkMode, setDarkMode] = useState(false);

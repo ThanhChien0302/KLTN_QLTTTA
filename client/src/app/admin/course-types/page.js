@@ -8,6 +8,43 @@ import { FiPlus, FiSearch, FiEdit2, FiTrash2, FiArrowLeft, FiPaperclip } from "r
 import { formatDateDdMmYyyy } from "../../../lib/dateFormat";
 import InputField from "../../components/InputField";
 
+/** Khớp logic server/utils/lessonOrder.js — phát hiện cần confirmReorder */
+function getMaxThuTuLesson(lessons) {
+  if (!lessons || lessons.length === 0) return 0;
+  return Math.max(...lessons.map((l) => Number(l.thutu) || 0));
+}
+function clampInsertPositionLesson(lessons, p) {
+  const max = getMaxThuTuLesson(lessons);
+  const want = Math.floor(Number(p));
+  if (!Number.isFinite(want) || want < 1) return 1;
+  return Math.min(want, max + 1);
+}
+function insertShiftsOthersLesson(lessons, validP) {
+  return validP <= getMaxThuTuLesson(lessons);
+}
+function moveShiftsOthersLesson(lessons, lessonId, oldT, newT) {
+  if (oldT === newT) return false;
+  const idStr = String(lessonId);
+  return lessons.some((l) => {
+    if (String(l._id) === idStr) return false;
+    if (oldT < newT) return l.thutu > oldT && l.thutu <= newT;
+    return l.thutu >= newT && l.thutu < oldT;
+  });
+}
+function lessonNeedsReorderConfirm(lessons, lessonEditing, rawOrder) {
+  const order = Math.floor(Number(rawOrder));
+  if (!lessonEditing) {
+    const validP = clampInsertPositionLesson(lessons, order);
+    return insertShiftsOthersLesson(lessons, validP);
+  }
+  const k = lessons.length;
+  const newT = Math.min(Math.max(1, order), k);
+  const oldT = Number(lessonEditing.thutu);
+  return moveShiftsOthersLesson(lessons, lessonEditing._id, oldT, newT);
+}
+function defaultThuTuForNewLesson(lessons) {
+  return getMaxThuTuLesson(lessons) + 1;
+}
 
 export default function CourseTypesPage() {
   const { token } = useAuth();
@@ -378,6 +415,9 @@ function EditCourseTypeView({ token, apiBase, courseTypesApiUrl, fileUploadApiUr
   const [activeViewerFile, setActiveViewerFile] = useState(null);
   const [pptSlideMode, setPptSlideMode] = useState(false);
 
+  /** Server 409 REORDER_REQUIRED — lần Lưu tiếp theo gửi confirmReorder */
+  const [reorder409Message, setReorder409Message] = useState("");
+
   const [docxPreviewLoading, setDocxPreviewLoading] = useState(false);
   const [docxPreviewText, setDocxPreviewText] = useState("");
   const [docxPreviewError, setDocxPreviewError] = useState("");
@@ -486,7 +526,17 @@ function EditCourseTypeView({ token, apiBase, courseTypesApiUrl, fileUploadApiUr
     };
   }, [activeViewerFile?._id, apiBase, token]);
 
+  const reorderClientHint = useMemo(() => {
+    const order = Number(lessonForm.thutu);
+    if (!Number.isInteger(order) || order < 1 || order > 9999) return null;
+    if (!lessonNeedsReorderConfirm(lessons, lessonEditing, order)) return null;
+    return lessonEditing
+      ? "Thay đổi thứ tự sẽ làm dịch các bài học khác trong danh sách."
+      : "Số thứ tự này đã có trong hệ thống — các bài từ vị trí này trở đi sẽ được đẩy về sau (thứ tự +1).";
+  }, [lessons, lessonEditing, lessonForm.thutu]);
+
   const openEditLesson = (ls) => {
+    setReorder409Message("");
     setLessonEditing(ls);
     setLessonForm({
       tenbai: ls.tenbai || "",
@@ -502,8 +552,9 @@ function EditCourseTypeView({ token, apiBase, courseTypesApiUrl, fileUploadApiUr
   };
 
   const resetLessonForm = () => {
+    setReorder409Message("");
     setLessonEditing(null);
-    setLessonForm({ tenbai: "", thutu: 1, mota: "" });
+    setLessonForm({ tenbai: "", thutu: defaultThuTuForNewLesson(lessons), mota: "" });
     setUploadedFiles([]);
     setIsLessonModalOpen(true);
   };
@@ -581,12 +632,16 @@ function EditCourseTypeView({ token, apiBase, courseTypesApiUrl, fileUploadApiUr
       return;
     }
 
+    const fromClient = lessonNeedsReorderConfirm(lessons, lessonEditing, order);
+    const confirmReorder = fromClient || Boolean(reorder409Message);
+
     const payload = {
       tenbai: ten,
       thutu: order,
       mota: String(lessonForm.mota || "").trim(),
       file: uploadedFiles[0]?._id || undefined,
       files: uploadedFiles.map((f) => f._id).filter(Boolean),
+      confirmReorder,
     };
 
     try {
@@ -599,19 +654,46 @@ function EditCourseTypeView({ token, apiBase, courseTypesApiUrl, fileUploadApiUr
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(payload),
       });
-      const json = await res.json();
+      const json = await res.json().catch(() => ({}));
+      if (res.status === 409 && json.code === "REORDER_REQUIRED") {
+        setReorder409Message(
+          String(json.message || "").trim() ||
+            "Thao tác này làm thay đổi thứ tự các bài khác. Vui lòng bấm Lưu lại để xác nhận."
+        );
+        return;
+      }
       if (!res.ok || !json.success) throw new Error(json.message || "Không thể lưu bài giảng");
 
-      if (lessonEditing) {
-        setLessons(prev => prev.map(x => (x._id === lessonEditing._id ? json.data : x)).sort((a, b) => (a.thutu || 0) - (b.thutu || 0)));
-        notify.success("Cập nhật bài giảng thành công");
-      } else {
-        setLessons(prev => [...prev, json.data].sort((a, b) => (a.thutu || 0) - (b.thutu || 0)));
-        notify.success("Tạo bài giảng thành công");
+      const d = json.data;
+      const sortFn = (a, b) => (a.thutu || 0) - (b.thutu || 0);
+      let nextLessons = lessons;
+      if (d && Array.isArray(d.lessons)) {
+        nextLessons = [...d.lessons].sort(sortFn);
+        setLessons(nextLessons);
+      } else if (d && d.lesson) {
+        if (lessonEditing) {
+          nextLessons = lessons.map((x) => (x._id === lessonEditing._id ? d.lesson : x)).sort(sortFn);
+        } else {
+          nextLessons = [...lessons, d.lesson].sort(sortFn);
+        }
+        setLessons(nextLessons);
+      } else if (d != null && !d.lesson && !d.lessons) {
+        const row = d;
+        if (row && typeof row === "object" && "_id" in row) {
+          if (lessonEditing) {
+            nextLessons = lessons.map((x) => (x._id === lessonEditing._id ? row : x)).sort(sortFn);
+          } else {
+            nextLessons = [...lessons, row].sort(sortFn);
+          }
+          setLessons(nextLessons);
+        }
       }
+
+      notify.success(lessonEditing ? "Cập nhật bài giảng thành công" : "Tạo bài giảng thành công");
+      setReorder409Message("");
       setIsLessonModalOpen(false);
       setLessonEditing(null);
-      setLessonForm({ tenbai: "", thutu: 1, mota: "" });
+      setLessonForm({ tenbai: "", thutu: defaultThuTuForNewLesson(nextLessons), mota: "" });
       setUploadedFiles([]);
     } catch (e2) {
       console.error(e2);
@@ -846,12 +928,12 @@ function EditCourseTypeView({ token, apiBase, courseTypesApiUrl, fileUploadApiUr
       <Modal
         isOpen={isLessonModalOpen}
         title={lessonEditing ? "Chỉnh sửa bài giảng" : "Thêm bài giảng mới"}
-        onClose={() => { setIsLessonModalOpen(false); setLessonEditing(null); setLessonForm({ tenbai: "", thutu: 1, mota: "" }); setUploadedFiles([]); }}
+        onClose={() => { setReorder409Message(""); setIsLessonModalOpen(false); setLessonEditing(null); setLessonForm({ tenbai: "", thutu: defaultThuTuForNewLesson(lessons), mota: "" }); setUploadedFiles([]); }}
         footer={(
           <>
             <button
               type="button"
-              onClick={() => { setIsLessonModalOpen(false); setLessonEditing(null); setLessonForm({ tenbai: "", thutu: 1, mota: "" }); setUploadedFiles([]); }}
+              onClick={() => { setReorder409Message(""); setIsLessonModalOpen(false); setLessonEditing(null); setLessonForm({ tenbai: "", thutu: defaultThuTuForNewLesson(lessons), mota: "" }); setUploadedFiles([]); }}
               className="px-4 py-2 rounded-md text-sm font-medium bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600"
             >
               Hủy
@@ -868,6 +950,17 @@ function EditCourseTypeView({ token, apiBase, courseTypesApiUrl, fileUploadApiUr
         )}
       >
         <form id="lesson-form" onSubmit={submitLesson} className="space-y-4">
+          {(reorderClientHint || reorder409Message) ? (
+            <div
+              role="status"
+              className="rounded-lg border border-orange-200 bg-orange-50 px-3 py-2.5 text-sm text-orange-950 dark:border-orange-800 dark:bg-orange-950/50 dark:text-orange-100"
+            >
+              {reorderClientHint ? <p className="m-0">{reorderClientHint}</p> : null}
+              {reorder409Message ? (
+                <p className={reorderClientHint ? "m-0 mt-2" : "m-0"}>{reorder409Message}</p>
+              ) : null}
+            </div>
+          ) : null}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tên bài giảng</label>
             <InputField
@@ -888,7 +981,10 @@ function EditCourseTypeView({ token, apiBase, courseTypesApiUrl, fileUploadApiUr
                 min={1}
                 max={9999}
                 value={lessonForm.thutu}
-                onChange={(e) => setLessonForm((prev) => ({ ...prev, thutu: e.target.value }))}
+                onChange={(e) => {
+                  setReorder409Message("");
+                  setLessonForm((prev) => ({ ...prev, thutu: e.target.value }));
+                }}
                 inputClassName="w-full px-3 py-2 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>

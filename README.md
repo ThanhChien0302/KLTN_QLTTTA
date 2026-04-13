@@ -1,6 +1,6 @@
 # Quản lý Trung tâm Tiếng Anh
 
-Hệ thống web quản lý trung tâm ngoại ngữ: **đăng ký / đăng nhập (OTP)**, **quản trị** (cơ sở, khóa học, người dùng, thông báo, đề mẫu, bài luyện tập, khóa kiosk…), **cổng giảng viên** (lịch, bài học, học viên, đơn nghỉ…) và **điểm danh kiosk** (nhận diện khuôn mặt qua camera).
+ Hệ thống web quản lý trung tâm ngoại ngữ: **đăng ký / đăng nhập (OTP)**, **quản trị** (cơ sở, khóa học, người dùng, thông báo, đề mẫu, bài luyện tập, khóa kiosk…), **cổng giảng viên** (lịch, bài học, học viên, đơn nghỉ…) và **điểm danh kiosk** (nhận diện khuôn mặt qua camera).
 
 | Thành phần | Vai trò |
 |------------|---------|
