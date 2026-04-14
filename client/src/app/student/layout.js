@@ -120,7 +120,6 @@ export default function StudentLayout({ children }) {
           <CollapsibleMenu text="Khóa Học Của Tôi" icon={<IconBook />} baseRoute="/student/courses">
             <SidebarLink href="/student/courses/overview" text="Tổng quan" />
             <SidebarLink href="/student/courses/assignments" text="Bài tập" />
-            <SidebarLink href="/student/courses/lessons" text="Buổi học" />
             <SidebarLink href="/student/courses/leave-request" text="Xin nghỉ phép" />
           </CollapsibleMenu>
 

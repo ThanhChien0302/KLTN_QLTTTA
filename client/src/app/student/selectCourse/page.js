@@ -93,10 +93,10 @@ function CourseListContent() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-800">
-              {redirect ? "Vui lòng chọn khóa học để tiếp tục" : "Khóa học đang giảng dạy"}
+              {redirect ? "Vui lòng chọn khóa học để tiếp tục" : "Khóa học đang tham gia"}
             </h1>
             <p className="text-sm text-gray-500 mt-1">
-              {redirect ? "Bạn cần chọn một khóa học thao tác tính năng này" : "Quản lý nội dung, học viên và theo dõi tiến độ"}
+              {redirect ? "Bạn cần chọn một khóa học thao tác tính năng này" : "Xem thông tin, lịch học và theo dõi tiến độ của bạn"}
             </p>
           </div>
           <div className="relative">
@@ -141,13 +141,13 @@ function CourseListContent() {
               {/* Card Body (Details List) */}
               <div className="flex flex-col space-y-4 mb-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-500 text-sm">Số lượng học viên:</span>
-                  <span className="font-bold text-gray-800 text-sm">{course.studentsText}</span>
+                  <span className="text-gray-500 text-sm">Giảng viên:</span>
+                  <span className="font-bold text-gray-800 text-sm">{course.teacherName}</span>
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-500 text-sm">Ngày khai giảng:</span>
-                  <span className="font-bold text-gray-800 text-sm">{course.startDate}</span>
+                  <span className="text-gray-500 text-sm">Lịch học:</span>
+                  <span className="font-bold text-gray-800 text-sm">{course.scheduleText}</span>
                 </div>
               </div>
 

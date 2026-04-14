@@ -2,6 +2,9 @@ const HocVien = require('../../models/HocVien');
 const DangKyKhoaHoc = require('../../models/DangKyKhoaHoc');
 const BuoiHoc = require('../../models/BuoiHoc');
 const ThamGiaBuoiHoc = require('../../models/ThamGiaBuoiHoc');
+const KhoaHoc = require('../../models/KhoaHoc');
+const GiangVien = require('../../models/GiangVien');
+const NguoiDung = require('../../models/NguoiDung');
 
 // GET /student/courses
 exports.getMyCourses = async (req, res) => {
@@ -12,16 +15,59 @@ exports.getMyCourses = async (req, res) => {
         }
 
         const enrolled = await DangKyKhoaHoc.find({ hocvienId: student._id })
-            .populate('KhoaHocID', 'tenkhoahoc ngaykhaigiang')
+            .populate('KhoaHocID', 'tenkhoahoc ngaykhaigiang giangvien lichHoc')
             .sort({ createdAt: -1 });
 
-        const formatted = enrolled.map(enroll => ({
-            id: enroll.KhoaHocID?._id,
-            tenkhoahoc: enroll.KhoaHocID?.tenkhoahoc,
-            dangKyKhoaHocId: enroll._id
-        })).filter(c => c.id);
+        const dayMap = { 0: 'CN', 1: 'Thứ 2', 2: 'Thứ 3', 3: 'Thứ 4', 4: 'Thứ 5', 5: 'Thứ 6', 6: 'Thứ 7' };
 
-        res.json({ success: true, data: formatted });
+        const formatted = await Promise.all(enrolled.map(async (enroll) => {
+            const khoahoc = enroll.KhoaHocID;
+            if(!khoahoc) return null;
+            
+            // Lấy tên giảng viên thủ công để tránh bất đồng bộ populate sâu
+            let teacherName = "Đang cập nhật";
+            if (khoahoc.giangvien) {
+                try {
+                    const gv = await GiangVien.findById(khoahoc.giangvien);
+                    if (gv && gv.userId) {
+                        const nd = await NguoiDung.findById(gv.userId);
+                        if (nd) teacherName = nd.hovaten;
+                    }
+                } catch (err) {
+                    console.error("Lỗi lấy thông tin giảng viên: ", err);
+                }
+            }
+
+            // Tóm tắt lịch học
+            let scheduleText = "Chưa xếp lịch";
+            if (khoahoc.lichHoc && khoahoc.lichHoc.length > 0) {
+                scheduleText = khoahoc.lichHoc.map(l => `${dayMap[l.thu] || l.thu} (${l.gioBatDau}-${l.gioKetThuc})`).join(', ');
+            }
+            
+            // Xử lý status và ngày khai giảng
+            let status = "Đang mở";
+            let startDateText = "Chưa xác định";
+            if (khoahoc.ngaykhaigiang) {
+                const kgDate = new Date(khoahoc.ngaykhaigiang);
+                startDateText = kgDate.toLocaleDateString('vi-VN');
+                if(kgDate > new Date()) status = "Sắp khai giảng";
+            }
+
+            return {
+                id: khoahoc._id,
+                tenkhoahoc: khoahoc.tenkhoahoc,
+                name: khoahoc.tenkhoahoc, // For frontend backward compatibility
+                dangKyKhoaHocId: enroll._id,
+                teacherName: teacherName,
+                scheduleText: scheduleText,
+                startDate: startDateText,
+                status: status
+            };
+        }));
+        
+        const finalData = formatted.filter(c => c !== null);
+
+        res.json({ success: true, data: finalData });
     } catch (err) {
         console.error("Lỗi getMyCourses:", err);
         res.status(500).json({ success: false, message: "Lỗi server" });
