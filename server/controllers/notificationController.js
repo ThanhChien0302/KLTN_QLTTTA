@@ -12,6 +12,7 @@ exports.getMyNotifications = async (req, res) => {
       .sort({ createdAt: -1 })
       .populate("createdBy", "hovaten email role")
       .populate("khoaHocId", "tenkhoahoc")
+      .populate("fileIds")
       .lean();
 
     // Tính toán số lượng chưa đọc

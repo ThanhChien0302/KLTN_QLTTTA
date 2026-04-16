@@ -6,6 +6,7 @@ import { useAuth } from "../../contexts/AuthContext";
 export default function Announcements() {
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
   const { user } = useAuth();
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
@@ -123,42 +124,119 @@ export default function Announcements() {
                   </div>
                 </div>
 
-                <p className="text-gray-600 mb-4 text-sm leading-relaxed whitespace-pre-wrap">
+                <p className="text-gray-600 mb-4 text-sm leading-relaxed line-clamp-2">
                   {item.noidung}
                 </p>
 
                 <div className="flex justify-between items-center mb-2">
                   <div className="flex space-x-6 text-sm text-gray-400">
                     {item.createdBy && (
-                       <div><span className="font-semibold text-gray-500">Người gửi:</span> {item.createdBy?.hovaten || 'Admin'}</div>
+                       <div><span className="font-semibold text-gray-500">Người gửi:</span> {item.createdBy?.hovaten || item.createdBy?.name || 'Admin'}</div>
                     )}
                     {item.khoaHocId && (
                        <div><span className="font-semibold text-gray-500">Khóa học:</span> {item.khoaHocId?.tenkhoahoc}</div>
                     )}
                   </div>
                   
-                  {item.link && (
-                    <button 
-                      className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg shadow-sm flex items-center gap-2 transition-colors"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (!isRead) markAsRead(item._id);
-                        window.location.href = item.link;
-                      }}
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                      </svg>
-                      {item.targetType === 'assignment_submit' || item.link.includes('grade-ass') ? 'Chấm bài nộp' : 'Xem chi tiết'}
-                    </button>
-                  )}
+                  <button 
+                    className="px-4 py-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 text-sm font-medium rounded-lg shadow-sm flex items-center gap-2 transition-colors ml-auto"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (!isRead) markAsRead(item._id);
+                      setSelectedAnnouncement(item);
+                    }}
+                  >
+                    Xem chi tiết
+                  </button>
                 </div>
               </div>
             );
           })}
         </div>
       </div>
+      
+      {/* Modal chi tiết thông báo */}
+      {selectedAnnouncement && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+          <div className="bg-white rounded-xl shadow-2xl ring-1 ring-black ring-opacity-5 border border-gray-200 w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col pt-1 pointer-events-auto">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+              <h3 className="text-xl font-bold text-gray-800 pr-8">
+                {selectedAnnouncement.tieuDe || 'Chi tiết thông báo'}
+              </h3>
+              <button
+                onClick={() => setSelectedAnnouncement(null)}
+                className="text-gray-400 hover:text-gray-600 focus:outline-none"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto">
+              <div className="flex items-center gap-2 mb-4">
+                <span className={`px-3 py-1 rounded-full text-xs font-medium ${getTypeBadgeColor(selectedAnnouncement.targetType)}`}>
+                  {getTypeText(selectedAnnouncement.targetType)}
+                </span>
+                <span className="text-sm text-gray-500">
+                  {new Date(selectedAnnouncement.createdAt).toLocaleString('vi-VN')}
+                </span>
+              </div>
+              
+              <div className="text-gray-700 whitespace-pre-wrap leading-relaxed text-base">
+                {selectedAnnouncement.noidung}
+              </div>
+              
+              {selectedAnnouncement.fileIds && selectedAnnouncement.fileIds.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-gray-100">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-2">Tệp đính kèm:</h4>
+                  <ul className="space-y-2">
+                    {selectedAnnouncement.fileIds.map((file, index) => (
+                      <li key={index}>
+                        <a 
+                          href={file.url?.startsWith('http') ? file.url : `${apiUrl}${file.url}`}
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="flex items-center text-sm text-blue-600 hover:text-blue-800 transition-colors"
+                        >
+                          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg>
+                          {file.originalName || file.url?.split('/').pop()}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              
+              <div className="mt-8 pt-4 border-t border-gray-100 flex justify-between text-sm text-gray-500">
+                {selectedAnnouncement.createdBy && (
+                  <div><span className="font-semibold text-gray-600">Người gửi:</span> {selectedAnnouncement.createdBy?.hovaten || selectedAnnouncement.createdBy?.name || 'Admin'}</div>
+                )}
+                {selectedAnnouncement.khoaHocId && (
+                  <div><span className="font-semibold text-gray-600">Khóa học:</span> {selectedAnnouncement.khoaHocId?.tenkhoahoc}</div>
+                )}
+              </div>
+            </div>
+            
+            <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
+              {selectedAnnouncement.link && (
+                <button
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
+                  onClick={() => {
+                    window.location.href = selectedAnnouncement.link;
+                  }}
+                >
+                  Đi tới liên kết
+                </button>
+              )}
+              <button
+                className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-medium rounded-lg transition-colors"
+                onClick={() => setSelectedAnnouncement(null)}
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

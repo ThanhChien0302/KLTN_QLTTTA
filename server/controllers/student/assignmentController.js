@@ -143,7 +143,34 @@ exports.submitAssignment = async (req, res) => {
       if (fileId) submission.filenop = fileId;
       submission.thoigian = new Date();
       submission.trangthai = "chờ chấm";
-      await submission.save(); // save sẽ trigger hook notify (trong NopBai có xử lý notify cho cả update k? => Hook của Mongoose NopBai hiện chỉ trigger notify cho wasNew. Để update notify thì cần chỉnh hook hoặc tự gửi ở đây. Tạm thời Mongoose hook được viết hỗ trợ wasNew)
+      await submission.save();
+
+      // ==========================================
+      // GỬI THÔNG BÁO CHO GIẢNG VIÊN (KHI CẬP NHẬT)
+      // ==========================================
+      try {
+        const course = await mongoose.model("KhoaHoc").findById(assignment.khoahocID);
+        if (course && course.giangvien) {
+          const teacher = await mongoose.model("GiangVien").findById(course.giangvien);
+          if (teacher && teacher.userId) {
+            const ThongBao = mongoose.model("ThongBao");
+            const timeString = submission.thoigian.toLocaleString('vi-VN', { 
+                hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' 
+            });
+            await ThongBao.create({
+              tieuDe: 'Học viên cập nhật bài nộp',
+              noidung: `Học viên ${student.userId?.hovaten || 'Một học viên'} vừa cập nhật bài tập "${assignment.tieude}" thuộc khóa học ${course.tenkhoahoc} vào lúc ${timeString}.`,
+              targetType: 'assignment_submit',
+              khoaHocId: course._id,
+              userID: [teacher.userId],
+              createdBy: req.user._id,
+              link: `/teacher/courses/grade-ass?id=${assignment._id}&submissionId=${submission._id}`
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Lỗi gửi thông báo cập nhật nộp bài:", err);
+      }
     } else {
       submission = await NopBai.create({
         baitapID,

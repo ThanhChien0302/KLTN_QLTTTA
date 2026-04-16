@@ -410,6 +410,29 @@ exports.gradeSubmission = async (req, res) => {
 
     await submission.save();
 
+    // ==========================================
+    // GỬI THÔNG BÁO CHO HỌC VIÊN
+    // ==========================================
+    try {
+      const dangky = await DangKyKhoaHoc.findById(submission.dangkykhoahocID).populate('hocvienId');
+      const baitap = await BaiTap.findById(submission.baitapID);
+      const studentUserId = dangky?.hocvienId?.userId;
+      
+      if (studentUserId && baitap) {
+        await ThongBao.create({
+            tieuDe: `Kết quả: ${baitap.tieude}`,
+            createdBy: req.user._id,
+            targetType: "personal",
+            khoaHocId: baitap.khoahocID,
+            userID: [studentUserId],
+            noidung: `Bài nộp của bạn cho bài tập "${baitap.tieude}" đã được chấm điểm.\nĐiểm: ${diem}${nhanxet ? `\nNhận xét: ${nhanxet}` : ''}`,
+            link: `/student/courses/detail-ass?id=${baitap._id}`
+        });
+      }
+    } catch (err) {
+      console.error("Lỗi gửi thông báo chấm điểm:", err);
+    }
+
     res.status(200).json({
       success: true,
       message: "Chấm điểm thành công!",
