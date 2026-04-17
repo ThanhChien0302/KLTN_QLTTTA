@@ -1,6 +1,8 @@
 const NguoiDung = require('../../models/NguoiDung');
 const HocVien = require('../../models/HocVien');
 const GiangVien = require('../../models/GiangVien');
+const KhoaHoc = require('../../models/KhoaHoc');
+const BuoiHoc = require('../../models/BuoiHoc');
 const bcrypt = require('bcryptjs');
 const { sendOTP } = require('../authController');
 const { sanitizeHocVienPublic } = require('../../utils/sanitizeHocVien');
@@ -375,6 +377,53 @@ const toggleTeacherStatus = async (req, res) => {
         if (typeof trangThaiHoatDong !== 'boolean') {
             return res.status(400).json({ success: false, message: 'Trạng thái không hợp lệ' });
         }
+
+        // ── Kiểm tra khoá giảng viên đang có buổi dạy ──────────────────────────
+        if (trangThaiHoatDong === false) {
+            const giangVienDoc = await GiangVien.findOne({ userId: req.params.id }).select('_id').lean();
+            if (giangVienDoc) {
+                // Tìm tất cả khóa học mà giảng viên này đang phụ trách
+                const khoaHocList = await KhoaHoc.find({ giangvien: giangVienDoc._id })
+                    .select('_id tenkhoahoc')
+                    .lean();
+
+                if (khoaHocList.length > 0) {
+                    const khoaHocIds = khoaHocList.map(k => k._id);
+                    const todayStart = new Date();
+                    todayStart.setHours(0, 0, 0, 0);
+
+                    // Kiểm tra có buổi dạy từ hôm nay trở đi không
+                    const futureBuoiHoc = await BuoiHoc.findOne({
+                        KhoaHocID: { $in: khoaHocIds },
+                        ngayhoc: { $gte: todayStart }
+                    }).select('_id KhoaHocID').lean();
+
+                    if (futureBuoiHoc) {
+                        // Lấy danh sách khóa học bị ảnh hưởng (có buổi dạy tương lai)
+                        const affectedIds = await BuoiHoc.distinct('KhoaHocID', {
+                            KhoaHocID: { $in: khoaHocIds },
+                            ngayhoc: { $gte: todayStart }
+                        });
+                        const affectedCourses = khoaHocList.filter(k =>
+                            affectedIds.some(id => String(id) === String(k._id))
+                        );
+
+                        return res.status(409).json({
+                            success: false,
+                            message: 'Không thể khóa giảng viên vì họ đang có buổi dạy chưa hoàn thành. ' +
+                                'Vui lòng thay thế giảng viên trong các khóa học sau trước khi khóa tài khoản.',
+                            data: {
+                                affectedCourses: affectedCourses.map(k => ({
+                                    courseId: k._id,
+                                    tenkhoahoc: k.tenkhoahoc
+                                }))
+                            }
+                        });
+                    }
+                }
+            }
+        }
+        // ────────────────────────────────────────────────────────────────────────
 
         const user = await NguoiDung.findOneAndUpdate(
             { _id: req.params.id, role: 'teacher' },

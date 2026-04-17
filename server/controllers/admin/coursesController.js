@@ -433,6 +433,121 @@ async function findScheduleConflicts({ proposedSessions, giangvienId, ignoreCour
   return conflicts;
 }
 
+/**
+ * Kiểm tra khi đổi giảng viên cho khóa học:
+ * Với mỗi buổi học tương lai của khóa, xét giảng viên mới có buổi dạy nào
+ * ở cơ sở KHÁC trong khoảng 1 tiếng trước / sau không.
+ * (gọi là "trung chuyển không kịp").
+ * @returns {{ ok: boolean, conflicts: Array }}
+ */
+async function checkTeacherCrossLocationConflict({ newTeacherId, courseId, courseCoSoId }) {
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  // Lấy tất cả buổi tương lai của khóa hiện tại
+  const upcomingSessions = await BuoiHoc.find({
+    KhoaHocID: courseId,
+    ngayhoc: { $gte: todayStart },
+  })
+    .select("_id ngayhoc giobatdau gioketthuc phonghoc")
+    .lean();
+
+  if (upcomingSessions.length === 0) return { ok: true, conflicts: [] };
+
+  const oneHour = 60 * 60 * 1000; // ms
+
+  const minStart = upcomingSessions.reduce((m, s) => (s.giobatdau < m ? s.giobatdau : m), upcomingSessions[0].giobatdau);
+  const maxEnd   = upcomingSessions.reduce((m, s) => (s.gioketthuc > m ? s.gioketthuc : m), upcomingSessions[0].gioketthuc);
+
+  // Mở rộng window thêm 1h mỗi phía để bắt các buổi kề cạnh
+  const searchFrom = new Date(minStart.getTime() - oneHour);
+  const searchTo   = new Date(maxEnd.getTime()   + oneHour);
+
+  const otherSessions = await BuoiHoc.aggregate([
+    {
+      $match: {
+        KhoaHocID: { $ne: courseId },
+        giobatdau: { $lt: searchTo },
+        gioketthuc: { $gt: searchFrom },
+      },
+    },
+    {
+      $lookup: {
+        from: "khoahocs",
+        localField: "KhoaHocID",
+        foreignField: "_id",
+        as: "khoaHoc",
+      },
+    },
+    { $unwind: "$khoaHoc" },
+    // Chỉ lấy buổi có giảng viên là giảng viên mới
+    { $match: { "khoaHoc.giangvien": newTeacherId } },
+    {
+      $lookup: {
+        from: "phonghocs",
+        localField: "phonghoc",
+        foreignField: "_id",
+        as: "phongDoc",
+      },
+    },
+    { $unwind: { path: "$phongDoc", preserveNullAndEmptyArrays: true } },
+    {
+      $project: {
+        _id: 1,
+        KhoaHocID: 1,
+        "khoaHoc.tenkhoahoc": 1,
+        ngayhoc: 1,
+        giobatdau: 1,
+        gioketthuc: 1,
+        phonghoc: 1,
+        "phongDoc.CoSoId": 1,
+      },
+    },
+  ]);
+
+  const targetCoSoStr = String(courseCoSoId);
+  const crossConflicts = [];
+
+  for (const upSess of upcomingSessions) {
+    for (const other of otherSessions) {
+      const otherCoSoStr = String(other.phongDoc?.CoSoId || "");
+      // Chỉ cảnh báo khi cơ sở KHÁC
+      if (otherCoSoStr === targetCoSoStr) continue;
+
+      // Khoảng cách giữa 2 buổi < 1 tiếng?
+      const gap = Math.min(
+        Math.abs(new Date(upSess.giobatdau).getTime() - new Date(other.gioketthuc).getTime()),
+        Math.abs(new Date(other.giobatdau).getTime() - new Date(upSess.gioketthuc).getTime())
+      );
+
+      if (gap < oneHour) {
+        crossConflicts.push({
+          buoiHocKhoaHienTai: {
+            _id: upSess._id,
+            ngayhoc: formatNgayDdMmYyyy(upSess.ngayhoc),
+            tuGio: formatHHmmFromDate(upSess.giobatdau),
+            denGio: formatHHmmFromDate(upSess.gioketthuc),
+          },
+          buoiHocKhoaKhac: {
+            _id: other._id,
+            khoaHocId: other.KhoaHocID,
+            tenkhoahoc: other.khoaHoc?.tenkhoahoc || "",
+            ngayhoc: formatNgayDdMmYyyy(other.ngayhoc),
+            tuGio: formatHHmmFromDate(other.giobatdau),
+            denGio: formatHHmmFromDate(other.gioketthuc),
+          },
+          gapMinutes: Math.round(gap / 60000),
+        });
+      }
+    }
+  }
+
+  if (crossConflicts.length > 0) {
+    return { ok: false, conflicts: crossConflicts };
+  }
+  return { ok: true, conflicts: [] };
+}
+
 async function suggestStartDates({ baseStartDate, lichHocItems, lessons, giangvienId, ignoreCourseId, limit = 5 }) {
   const suggestions = [];
   const maxLookaheadDays = 90;
@@ -737,6 +852,99 @@ exports.createCourse = async (req, res) => {
       });
     }
 
+    // ── Kiểm tra trung chuyển không kịp (< 1 tiếng, cơ sở khác) ───────────────
+    {
+      const oneHour = 60 * 60 * 1000;
+      const minStart = proposed.reduce((m, s) => (s.giobatdau < m ? s.giobatdau : m), proposed[0].giobatdau);
+      const maxEnd   = proposed.reduce((m, s) => (s.gioketthuc > m ? s.gioketthuc : m), proposed[0].gioketthuc);
+      const searchFrom = new Date(minStart.getTime() - oneHour);
+      const searchTo   = new Date(maxEnd.getTime()   + oneHour);
+
+      const otherSessionsCreate = await BuoiHoc.aggregate([
+        {
+          $match: {
+            giobatdau: { $lt: searchTo },
+            gioketthuc: { $gt: searchFrom },
+          },
+        },
+        {
+          $lookup: {
+            from: "khoahocs",
+            localField: "KhoaHocID",
+            foreignField: "_id",
+            as: "khoaHoc",
+          },
+        },
+        { $unwind: "$khoaHoc" },
+        { $match: { "khoaHoc.giangvien": teacherId } },
+        {
+          $lookup: {
+            from: "phonghocs",
+            localField: "phonghoc",
+            foreignField: "_id",
+            as: "phongDoc",
+          },
+        },
+        { $unwind: { path: "$phongDoc", preserveNullAndEmptyArrays: true } },
+        {
+          $project: {
+            _id: 1,
+            KhoaHocID: 1,
+            "khoaHoc.tenkhoahoc": 1,
+            ngayhoc: 1,
+            giobatdau: 1,
+            gioketthuc: 1,
+            "phongDoc.CoSoId": 1,
+          },
+        },
+      ]);
+
+      const coSoStr = String(coSoOid);
+      const crossConflictsCreate = [];
+
+      for (const p of proposed) {
+        for (const other of otherSessionsCreate) {
+          const otherCoSoStr = String(other.phongDoc?.CoSoId || "");
+          if (otherCoSoStr === coSoStr) continue; // cùng cơ sở — không cần lo
+
+          const gap = Math.min(
+            Math.abs(new Date(p.giobatdau).getTime() - new Date(other.gioketthuc).getTime()),
+            Math.abs(new Date(other.giobatdau).getTime() - new Date(p.gioketthuc).getTime())
+          );
+
+          if (gap < oneHour) {
+            crossConflictsCreate.push({
+              buoiDuKien: {
+                ngayhoc: formatNgayDdMmYyyy(p.ngayhoc),
+                tuGio: formatHHmmFromDate(p.giobatdau),
+                denGio: formatHHmmFromDate(p.gioketthuc),
+              },
+              buoiHocKhoaKhac: {
+                _id: other._id,
+                khoaHocId: other.KhoaHocID,
+                tenkhoahoc: other.khoaHoc?.tenkhoahoc || "",
+                ngayhoc: formatNgayDdMmYyyy(other.ngayhoc),
+                tuGio: formatHHmmFromDate(other.giobatdau),
+                denGio: formatHHmmFromDate(other.gioketthuc),
+              },
+              gapMinutes: Math.round(gap / 60000),
+            });
+          }
+        }
+      }
+
+      if (crossConflictsCreate.length > 0) {
+        return res.status(409).json({
+          success: false,
+          message:
+            "Không thể tạo khóa học: trong vòng 1 tiếng trước hoặc sau một số buổi học dự kiến, " +
+            "giảng viên được chọn đang phải dạy ở cơ sở khác — không đủ thời gian di chuyển.",
+          data: { crossLocationConflicts: crossConflictsCreate },
+        });
+      }
+    }
+    // ────────────────────────────────────────────────────────────────────────────
+
     const created = await KhoaHoc.create({
       CoSoId: coSoOid,
       LoaiKhoaHocID: courseTypeId,
@@ -847,6 +1055,68 @@ exports.updateCourse = async (req, res) => {
         message: `Không thể cập nhật: số học viên hiện tại (${currentStudentCount}) vượt quá sức chứa tối đa mới (${soHocVienToiDa}).`,
       });
     }
+
+    // ── Kiểm tra khi đổi giảng viên ────────────────────────────────────────────
+    const teacherChanged = String(existingCourse.giangvien) !== String(teacherId);
+    if (teacherChanged) {
+      // 1) Lấy các buổi tương lai của khóa này để kiểm tra trùng lịch
+      const todayStartCheck = new Date();
+      todayStartCheck.setHours(0, 0, 0, 0);
+      const futureSessions = await BuoiHoc.find({
+        KhoaHocID: courseId,
+        ngayhoc: { $gte: todayStartCheck },
+      })
+        .select("_id ngayhoc giobatdau gioketthuc phonghoc BaiHocID")
+        .lean();
+
+      if (futureSessions.length > 0) {
+        // Dựng proposed sessions từ các buổi thực tế (không phải lịch đề xuất)
+        const proposedFromExisting = futureSessions.map((s) => ({
+          ngayhoc: s.ngayhoc,
+          giobatdau: s.giobatdau,
+          gioketthuc: s.gioketthuc,
+          phonghoc: s.phonghoc,
+          BaiHocID: s.BaiHocID,
+          meta: {
+            thu: new Date(s.ngayhoc).getDay(),
+            gioBatDau: formatHHmmFromDate(s.giobatdau),
+            gioKetThuc: formatHHmmFromDate(s.gioketthuc),
+          },
+        }));
+
+        // 1a) Kiểm tra trùng lịch giảng viên mới (trùng giờ với khóa khác)
+        const teacherConflicts = await findScheduleConflicts({
+          proposedSessions: proposedFromExisting,
+          giangvienId: teacherId,
+          ignoreCourseId: courseId,
+        });
+        if (teacherConflicts.length > 0) {
+          return res.status(409).json({
+            success: false,
+            message:
+              "Không thể đổi giảng viên: giảng viên mới đã có lịch dạy trùng với các buổi học của khóa này.",
+            data: { conflicts: teacherConflicts },
+          });
+        }
+
+        // 1b) Kiểm tra trong vòng 1 tiếng — giảng viên mới dạy ở cơ sở khác
+        const crossCheck = await checkTeacherCrossLocationConflict({
+          newTeacherId: teacherId,
+          courseId,
+          courseCoSoId: resolvedCoSoId,
+        });
+        if (!crossCheck.ok) {
+          return res.status(409).json({
+            success: false,
+            message:
+              "Không thể đổi giảng viên: trong vòng 1 tiếng trước hoặc sau một số buổi học của khóa này, " +
+              "giảng viên được chọn đang phải dạy ở cơ sở khác — không đủ thời gian di chuyển.",
+            data: { crossLocationConflicts: crossCheck.conflicts },
+          });
+        }
+      }
+    }
+    // ────────────────────────────────────────────────────────────────────────────
 
     const scheduleChanged =
       String(startOfDayLocal(existingCourse.ngaykhaigiang)) !== String(startOfDayLocal(start)) ||
