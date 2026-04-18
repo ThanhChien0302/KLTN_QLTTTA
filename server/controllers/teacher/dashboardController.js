@@ -62,12 +62,23 @@ exports.getDashboardStats = async (req, res) => {
       }
     }
 
+    const gradedSubmissions = await NopBai.countDocuments({
+      baitapID: { $in: baiTapIds },
+      trangthai: "đã chấm"
+    });
+
     // 4. Số đơn xin nghỉ pending
     const dangkys = await DangKyKhoaHoc.find({ KhoaHocID: { $in: courseIds } }).select("_id");
     const dangkyIds = dangkys.map(dk => dk._id);
     const pendingLeaveRequests = await ThamGiaBuoiHoc.countDocuments({
       dangkykhoahocID: { $in: dangkyIds },
       trangthai_duyet: "pending",
+      loai_don: { $exists: true }
+    });
+
+    const approvedLeaveRequests = await ThamGiaBuoiHoc.countDocuments({
+      dangkykhoahocID: { $in: dangkyIds },
+      trangthai_duyet: "approved",
       loai_don: { $exists: true }
     });
 
@@ -92,6 +103,8 @@ exports.getDashboardStats = async (req, res) => {
         totalStudents,
         pendingSubmissions,
         pendingLeaveRequests,
+        gradedSubmissions,
+        approvedLeaveRequests,
         pendingAssignmentsDetail
       },
       upcomingClasses

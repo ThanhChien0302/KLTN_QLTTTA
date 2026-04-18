@@ -108,7 +108,7 @@ export default function TeacherDashboard() {
       {/* Thống kê Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <div
-          onClick={() => router.push('/teacher/selectkhoahoc')}
+          onClick={() => router.push('/teacher/courses/overview')}
           className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col justify-between cursor-pointer hover:-translate-y-2 hover:shadow-xl hover:border-blue-300 transition-all duration-300 group"
         >
           <div className="flex justify-between items-start">
@@ -216,7 +216,7 @@ export default function TeacherDashboard() {
           </div>
           <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4 h-full" style={{ maxHeight: "400px" }}>
             <button
-              onClick={() => router.push('/teacher/selectkhoahoc')}
+              onClick={() => router.push('/teacher/courses/overview')}
               className="flex flex-col items-center justify-center p-6 border border-gray-200 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-all group"
             >
               <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-3 group-hover:bg-blue-600 group-hover:text-white transition-colors">

@@ -234,10 +234,10 @@ export default function Schedule() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
 
       {/* HEADER */}
-      <div className="bg-white p-6 rounded-lg shadow flex justify-between items-center">
+      <div className="bg-white p-6 rounded-lg shadow flex justify-between items-center animate-slide-in-up">
         <div>
           <h1 className="text-2xl font-bold">Lịch Dạy Học</h1>
           <p className="text-gray-500">Quản lý lịch theo ngày / tuần / tháng</p>
@@ -263,7 +263,7 @@ export default function Schedule() {
       </div>
 
       {/* CONTENT */}
-      <div className="bg-white rounded-lg shadow">
+      <div className="bg-white rounded-lg shadow animate-slide-in-up" style={{ animationDelay: '100ms' }}>
 
         <div className="p-4 border-b font-semibold flex items-center justify-between bg-gray-50 rounded-t-lg">
           <div>
@@ -311,7 +311,7 @@ export default function Schedule() {
 
                               {/* TIME */}
                               <span className="flex items-center gap-1">
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
                                     d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
@@ -320,7 +320,7 @@ export default function Schedule() {
 
                               {/* CLASSROOM */}
                               <span className="flex items-center gap-1">
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
                                     d="M3 7h18M5 7v13h14V7M9 11h6M9 15h6" />
                                 </svg>
@@ -329,7 +329,7 @@ export default function Schedule() {
 
                               {/* BRANCH (CƠ SỞ) */}
                               <span className="flex items-center gap-1">
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
                                     d="M3 21h18M5 21V7l7-4 7 4v14M9 21V9h6v12" />
                                 </svg>
@@ -338,7 +338,7 @@ export default function Schedule() {
 
                               {/* STUDENTS */}
                               <span className="flex items-center gap-1">
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
                                     d="M17 20h5v-1a4 4 0 00-3-3.87M9 20H4v-1a4 4 0 013-3.87m6-2.13a4 4 0 10-8 0 4 4 0 008 0zm6-2a4 4 0 10-8 0 4 4 0 008 0z" />
                                 </svg>
