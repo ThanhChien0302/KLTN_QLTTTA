@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { use } from "react";
+import ConfirmModal from "../../../components/ConfirmModal";
 
 export default function MockTestTakePage({ params }) {
   const resolvedParams = use(params);
@@ -17,6 +18,8 @@ export default function MockTestTakePage({ params }) {
   const [answers, setAnswers] = useState({});
   const [timeLeft, setTimeLeft] = useState(0); 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState(null);
   const timerRef = useRef(null);
 
   useEffect(() => {
@@ -61,6 +64,36 @@ export default function MockTestTakePage({ params }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeLeft, isSubmitting]);
 
+  // Handle navigation blocking and tab closing
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (!isSubmitting) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    const handleClick = (e) => {
+      if (isSubmitting) return;
+      const target = e.target.closest('a');
+      if (target && target.href) {
+        const isInternalLink = target.href.startsWith(window.location.origin) && !target.href.includes(window.location.pathname);
+        if (isInternalLink) {
+          e.preventDefault();
+          setPendingNavigation(target.href);
+          setShowSubmitModal(true);
+        }
+      }
+    };
+    document.addEventListener("click", handleClick, { capture: true });
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      document.removeEventListener("click", handleClick, { capture: true });
+    };
+  }, [isSubmitting]);
+
   const handleAnswerChange = (questionId, loaiCauHoi, value) => {
     setAnswers(prev => {
       const currentAns = prev[questionId] || { loaiCauHoi };
@@ -82,11 +115,12 @@ export default function MockTestTakePage({ params }) {
     });
   };
 
-  const handleSubmit = async (isAutoSubmit = false) => {
-    if (!isAutoSubmit) {
-      if (!confirm("Bạn có chắc chắn muốn nộp bài?")) return;
-    }
-    
+  const openSubmitModal = () => {
+    setPendingNavigation(null);
+    setShowSubmitModal(true);
+  };
+
+  const executeSubmit = async (isAutoSubmit = false, navUrl = null) => {
     setIsSubmitting(true);
     clearInterval(timerRef.current);
 
@@ -109,7 +143,11 @@ export default function MockTestTakePage({ params }) {
 
       if (res.ok) {
         const result = await res.json();
-        router.push(`/student/practice-tests/history/${result.data._id}`);
+        if (navUrl) {
+          window.location.href = navUrl;
+        } else {
+          router.push(`/student/practice-tests/history/${result.data._id}`);
+        }
       } else {
         alert("Có lỗi khi nộp bài. Vui lòng thử lại.");
         setIsSubmitting(false);
@@ -117,6 +155,14 @@ export default function MockTestTakePage({ params }) {
     } catch (err) {
       alert("Lỗi mạng khi nộp bài.");
       setIsSubmitting(false);
+    }
+  };
+
+  const handleSubmit = (isAutoSubmit = false) => {
+    if (isAutoSubmit) {
+       executeSubmit(true);
+    } else {
+       openSubmitModal();
     }
   };
 
@@ -257,6 +303,23 @@ export default function MockTestTakePage({ params }) {
           </button>
         </div>
       </div>
+      
+      <ConfirmModal
+        isOpen={showSubmitModal}
+        title="Xác nhận nộp bài"
+        message={pendingNavigation ? "Bạn cần nộp bài trước khi chuyển trang. Bạn có chắc chắn muốn nộp bài ngay bây giờ?" : "Bạn có chắc chắn muốn nộp bài? Bạn sẽ không thể thay đổi câu trả lời sau khi nộp."}
+        confirmText="Nộp bài"
+        cancelText="Quay lại làm tiếp"
+        type="warning"
+        onCancel={() => {
+          setShowSubmitModal(false);
+          setPendingNavigation(null);
+        }}
+        onConfirm={() => {
+          setShowSubmitModal(false);
+          executeSubmit(false, pendingNavigation);
+        }}
+      />
     </div>
   );
 }
