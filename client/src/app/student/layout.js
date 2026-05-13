@@ -14,21 +14,20 @@ const SidebarLink = ({ href, text, icon, darkMode }) => {
   if (pathname === '/student/selectCourse' && typeof window !== 'undefined') {
     isRedirectMatch = window.location.search.includes(href);
   }
-  
-  const isActive = href === '/student' 
-    ? pathname === '/student' 
+
+  const isActive = href === '/student'
+    ? pathname === '/student'
     : (pathname === href || pathname.startsWith(`${href}/`) || isRedirectMatch);
 
   return (
     <Link
       href={href}
-      className={`flex items-center w-full text-left px-4 py-3 rounded-lg transition-colors duration-200 mb-1 ${
-        isActive
+      className={`flex items-center w-full text-left px-4 py-3 rounded-lg transition-colors duration-200 mb-1 ${isActive
           ? "bg-blue-600 text-white shadow-md font-bold"
           : darkMode
             ? "text-gray-400 hover:bg-gray-700 hover:text-gray-100 font-medium"
             : "text-gray-600 hover:bg-gray-100 hover:text-gray-800 font-medium"
-      }`}
+        }`}
     >
       {icon}
       <span className="ml-3">{text}</span>
@@ -52,22 +51,20 @@ const CollapsibleMenu = ({ text, icon, children, baseRoute, darkMode }) => {
     <div>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center w-full text-left px-4 py-3 rounded-lg transition-colors duration-200 mb-1 ${
-          isActive
+        className={`flex items-center w-full text-left px-4 py-3 rounded-lg transition-colors duration-200 mb-1 ${isActive
             ? "text-blue-600 font-bold"
             : darkMode
               ? "text-gray-400 hover:bg-gray-700 hover:text-gray-100 font-medium"
               : "text-gray-600 hover:bg-gray-100 font-medium"
-        }`}
+          }`}
       >
         {icon}
         <span className="ml-3">{text}</span>
         <IconChevronDown isOpen={isOpen} />
       </button>
       <div
-        className={`overflow-hidden transition-all duration-300 ease-in-out ${
-          isOpen ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
-        }`}
+        className={`overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
+          }`}
       >
         <div className="pl-12 pr-2 pt-1 pb-1 space-y-1">{children}</div>
       </div>
@@ -127,7 +124,7 @@ export default function StudentLayout({ children }) {
 
         <nav className="flex-1 px-4 py-6 overflow-y-auto custom-scrollbar">
           <p className="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Học tập</p>
-          <SidebarLink href="/student" text="Tổng quan" icon={<IconHome />} />
+          <SidebarLink href="/student" text="Tổng quan học tập" icon={<IconHome />} />
 
           <CollapsibleMenu text="Khóa Học Của Tôi" icon={<IconBook />} baseRoute="/student/courses">
             <SidebarLink href="/student/courses/overview" text="Tổng quan" />
@@ -160,7 +157,7 @@ export default function StudentLayout({ children }) {
       {/* Khu vực nội dung chính */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Header chung */}
-        <header className={`shadow-sm h-16 flex justify-between items-center px-8 z-0 transition-colors duration-300 ${darkMode ? "bg-gray-800 border-b border-gray-700" : "bg-white"}`}>
+        <header className={`relative shadow-sm h-16 flex justify-between items-center px-8 z-50 transition-colors duration-300 ${darkMode ? "bg-gray-800 border-b border-gray-700" : "bg-white"}`}>
           <h2 className={`text-xl font-semibold ${darkMode ? "text-gray-100" : "text-gray-800"}`}>Hệ Thống Học Tập</h2>
           <div className="flex items-center space-x-4">
             {/* Nút đổi Theme */}
