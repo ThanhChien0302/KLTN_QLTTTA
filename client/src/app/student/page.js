@@ -42,7 +42,7 @@ export default function StudentDashboard() {
         
         <div className="relative z-10 flex flex-col md:flex-row md:justify-between md:items-center gap-6">
           <div>
-            <h1 className="text-3xl sm:text-4xl font-black mb-3 text-white drop-shadow-md tracking-tight">Không gian học tập</h1>
+            <h1 className="text-3xl sm:text-4xl font-bold mb-3 text-white drop-shadow-md tracking-tight">Không gian học tập</h1>
             <p className="text-blue-50 text-lg font-medium">
               Xin chào, <span className="font-bold text-white text-xl">{user?.hovaten || user?.name || "Học viên"}</span>! Sẵn sàng chinh phục tri thức hôm nay chưa?
             </p>
@@ -58,7 +58,6 @@ export default function StudentDashboard() {
       {/* Lưới Bento (Bento Grid) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-slide-in-up" style={{ animationDelay: '100ms' }}>
         
-        {/* Khóa Học Của Tôi - Nổi bật (span 2 cols) */}
         <div 
           onClick={() => router.push('/student/courses/overview')}
           className="group relative md:col-span-2 bg-white rounded-3xl p-8 shadow-sm border border-gray-100 hover:border-blue-300 hover:shadow-xl hover:shadow-blue-500/20 transition-all duration-300 cursor-pointer overflow-hidden flex flex-col justify-between min-h-[220px]"
@@ -77,7 +76,7 @@ export default function StudentDashboard() {
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
               </div>
             </div>
-            <h3 className="text-2xl font-black text-gray-800 mb-2 group-hover:text-blue-600 transition-colors">Khóa Học Của Tôi</h3>
+            <h3 className="text-2xl font-bold text-gray-800 mb-2 group-hover:text-blue-600 transition-colors">Khóa Học Của Tôi</h3>
             <p className="text-gray-500 font-medium max-w-[80%]">Quản lý bài tập, theo dõi tiến độ và điểm số các môn học bạn đang tham gia.</p>
           </div>
         </div>
@@ -101,7 +100,7 @@ export default function StudentDashboard() {
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
               </div>
             </div>
-            <h3 className="text-2xl font-black text-gray-800 mb-2 group-hover:text-emerald-600 transition-colors">Lịch học</h3>
+            <h3 className="text-2xl font-bold text-gray-800 mb-2 group-hover:text-emerald-600 transition-colors">Lịch học</h3>
             <p className="text-gray-500 font-medium max-w-[80%]">Lên kế hoạch học tập, xem phòng học và thời gian bắt đầu chính xác.</p>
           </div>
         </div>
@@ -117,7 +116,7 @@ export default function StudentDashboard() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
-            <h3 className="text-lg font-extrabold text-gray-800 mb-2 group-hover:text-purple-600 transition-colors">Luyện Đề</h3>
+            <h3 className="text-lg font-bold text-gray-800 mb-2 group-hover:text-purple-600 transition-colors">Luyện Đề</h3>
             <p className="text-sm text-gray-500 font-medium leading-snug">Thi thử TOEIC/IELTS tính thời gian thật.</p>
           </div>
           <div className="mt-4 flex justify-end opacity-0 group-hover:opacity-100 transition-opacity">
@@ -136,7 +135,7 @@ export default function StudentDashboard() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
             </div>
-            <h3 className="text-lg font-extrabold text-gray-800 mb-2 group-hover:text-orange-600 transition-colors">Luyện Tập</h3>
+            <h3 className="text-lg font-bold text-gray-800 mb-2 group-hover:text-orange-600 transition-colors">Luyện Tập</h3>
             <p className="text-sm text-gray-500 font-medium leading-snug">Rèn luyện kỹ năng qua từng dạng bài nhỏ.</p>
           </div>
           <div className="mt-4 flex justify-end opacity-0 group-hover:opacity-100 transition-opacity">
@@ -155,7 +154,7 @@ export default function StudentDashboard() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
               </svg>
             </div>
-            <h3 className="text-lg font-extrabold text-gray-800 mb-2 group-hover:text-rose-600 transition-colors">Thông Báo</h3>
+            <h3 className="text-lg font-bold text-gray-800 mb-2 group-hover:text-rose-600 transition-colors">Thông Báo</h3>
             <p className="text-sm text-gray-500 font-medium leading-snug">Cập nhật tin tức và thông báo mới nhất.</p>
           </div>
           <div className="mt-4 flex justify-end opacity-0 group-hover:opacity-100 transition-opacity">
@@ -174,7 +173,7 @@ export default function StudentDashboard() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
               </svg>
             </div>
-            <h3 className="text-lg font-extrabold text-gray-800 mb-2 group-hover:text-indigo-600 transition-colors">Thông tin cá nhân</h3>
+            <h3 className="text-lg font-bold text-gray-800 mb-2 group-hover:text-indigo-600 transition-colors">Thông tin cá nhân</h3>
             <p className="text-sm text-gray-500 font-medium leading-snug">Chỉnh sửa thông tin, bảo mật tài khoản.</p>
           </div>
           <div className="mt-4 flex justify-end opacity-0 group-hover:opacity-100 transition-opacity">

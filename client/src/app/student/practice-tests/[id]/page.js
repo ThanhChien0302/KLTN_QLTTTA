@@ -9,14 +9,14 @@ export default function MockTestTakePage({ params }) {
   const resolvedParams = use(params);
   const router = useRouter();
   const testId = resolvedParams.id;
-  
+
   const [testData, setTestData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  
+
   // Mảng lưu câu trả lời: { [questionId]: { loaiCauHoi, cauTraLoiIndex, cauTraLoiIndices, cauTraLoiBoolean, cauTraLoiText } }
   const [answers, setAnswers] = useState({});
-  const [timeLeft, setTimeLeft] = useState(0); 
+  const [timeLeft, setTimeLeft] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState(null);
@@ -29,7 +29,7 @@ export default function MockTestTakePage({ params }) {
         const res = await fetch(`${apiUrl}/student/mock-tests/${testId}`, {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
         });
-        
+
         if (res.ok) {
           const json = await res.json();
           setTestData(json.data);
@@ -43,7 +43,7 @@ export default function MockTestTakePage({ params }) {
         setLoading(false);
       }
     };
-    
+
     fetchTest();
   }, [testId]);
 
@@ -130,9 +130,9 @@ export default function MockTestTakePage({ params }) {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
       const res = await fetch(`${apiUrl}/student/mock-tests/submit`, {
         method: "POST",
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}` 
+          Authorization: `Bearer ${localStorage.getItem("token")}`
         },
         body: JSON.stringify({
           deThiMauID: testId,
@@ -160,9 +160,9 @@ export default function MockTestTakePage({ params }) {
 
   const handleSubmit = (isAutoSubmit = false) => {
     if (isAutoSubmit) {
-       executeSubmit(true);
+      executeSubmit(true);
     } else {
-       openSubmitModal();
+      openSubmitModal();
     }
   };
 
@@ -190,9 +190,9 @@ export default function MockTestTakePage({ params }) {
         <div className="pl-10 space-y-2">
           {q.loaiCauHoi === 'mcq' && q.luaChon.map((opt, i) => (
             <label key={i} className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-md cursor-pointer border border-transparent hover:border-gray-200 transition-colors">
-              <input 
-                type="radio" 
-                name={q._id} 
+              <input
+                type="radio"
+                name={q._id}
                 checked={ans.cauTraLoiIndex === i}
                 onChange={() => handleAnswerChange(q._id, 'mcq', i)}
                 className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
@@ -203,8 +203,8 @@ export default function MockTestTakePage({ params }) {
 
           {q.loaiCauHoi === 'multiSelect' && q.luaChon.map((opt, i) => (
             <label key={i} className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-md cursor-pointer border border-transparent hover:border-gray-200 transition-colors">
-              <input 
-                type="checkbox" 
+              <input
+                type="checkbox"
                 checked={(ans.cauTraLoiIndices || []).includes(i)}
                 onChange={() => handleAnswerChange(q._id, 'multiSelect', i)}
                 className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
@@ -227,8 +227,8 @@ export default function MockTestTakePage({ params }) {
           )}
 
           {q.loaiCauHoi === 'shortAnswer' && (
-            <input 
-              type="text" 
+            <input
+              type="text"
               placeholder="Nhập câu trả lời của bạn..."
               value={ans.cauTraLoiText || ''}
               onChange={(e) => handleAnswerChange(q._id, 'shortAnswer', e.target.value)}
@@ -245,7 +245,7 @@ export default function MockTestTakePage({ params }) {
   return (
     <div className="bg-gray-50 min-h-screen pb-20">
       {/* Sticky Header with Timer */}
-      <div className="sticky top-0 bg-white border-b shadow-sm py-4 px-6 z-10 flex justify-between items-center mb-6">
+      <div className="sticky -top-8 -mt-8 -mx-8 px-14 bg-white border-b shadow-sm py-4 z-20 flex justify-between items-center mb-8">
         <div>
           <h1 className="text-xl font-bold text-gray-800">{testData.tenDe}</h1>
           <p className="text-sm text-gray-500">{testData.chungChi} • {testData.capDo}</p>
@@ -255,7 +255,7 @@ export default function MockTestTakePage({ params }) {
             <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
             {formatTime(timeLeft)}
           </div>
-          <button 
+          <button
             onClick={() => handleSubmit(false)}
             disabled={isSubmitting}
             className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg transition-colors disabled:bg-gray-400 shadow-sm"
@@ -269,12 +269,12 @@ export default function MockTestTakePage({ params }) {
         {testData.phans?.map((phan, pIndex) => (
           <div key={phan._id} className="mb-10">
             <h2 className="text-2xl font-bold text-gray-800 border-b-2 border-gray-200 pb-2 mb-6">Phần {pIndex + 1}: {phan.tenPhan}</h2>
-            
+
             {/* Questions without group */}
             {phan.cauHoi?.map(q => {
-               const elem = renderQuestion(q, globalQuestionIndex);
-               globalQuestionIndex++;
-               return elem;
+              const elem = renderQuestion(q, globalQuestionIndex);
+              globalQuestionIndex++;
+              return elem;
             })}
 
             {/* Groups */}
@@ -294,7 +294,7 @@ export default function MockTestTakePage({ params }) {
         ))}
 
         <div className="flex justify-center mt-12 mb-8">
-           <button 
+          <button
             onClick={() => handleSubmit(false)}
             disabled={isSubmitting}
             className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-10 rounded-xl text-lg transition-colors disabled:bg-gray-400 shadow-md"
@@ -303,7 +303,7 @@ export default function MockTestTakePage({ params }) {
           </button>
         </div>
       </div>
-      
+
       <ConfirmModal
         isOpen={showSubmitModal}
         title="Xác nhận nộp bài"

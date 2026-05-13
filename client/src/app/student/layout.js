@@ -7,6 +7,74 @@ import { useAuth } from "../contexts/AuthContext";
 import ConfirmModal from "../components/ConfirmModal";
 import NotificationDropdown from "../components/NotificationDropdown";
 
+// Component link sidebar để tái sử dụng
+const SidebarLink = ({ href, text, icon, darkMode }) => {
+  const pathname = usePathname();
+  let isRedirectMatch = false;
+  if (pathname === '/student/selectCourse' && typeof window !== 'undefined') {
+    isRedirectMatch = window.location.search.includes(href);
+  }
+  
+  const isActive = href === '/student' 
+    ? pathname === '/student' 
+    : (pathname === href || pathname.startsWith(`${href}/`) || isRedirectMatch);
+
+  return (
+    <Link
+      href={href}
+      className={`flex items-center w-full text-left px-4 py-3 rounded-lg transition-colors duration-200 mb-1 ${
+        isActive
+          ? "bg-blue-600 text-white shadow-md font-bold"
+          : darkMode
+            ? "text-gray-400 hover:bg-gray-700 hover:text-gray-100 font-medium"
+            : "text-gray-600 hover:bg-gray-100 hover:text-gray-800 font-medium"
+      }`}
+    >
+      {icon}
+      <span className="ml-3">{text}</span>
+    </Link>
+  );
+};
+
+// Component cho menu có thể thu gọn
+const CollapsibleMenu = ({ text, icon, children, baseRoute, darkMode }) => {
+  const pathname = usePathname();
+  const isActive = pathname.startsWith(baseRoute) || pathname === '/student/selectCourse';
+  const [isOpen, setIsOpen] = useState(isActive);
+
+  useEffect(() => {
+    if (isActive) {
+      setIsOpen(true);
+    }
+  }, [isActive]);
+
+  return (
+    <div>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className={`flex items-center w-full text-left px-4 py-3 rounded-lg transition-colors duration-200 mb-1 ${
+          isActive
+            ? "text-blue-600 font-bold"
+            : darkMode
+              ? "text-gray-400 hover:bg-gray-700 hover:text-gray-100 font-medium"
+              : "text-gray-600 hover:bg-gray-100 font-medium"
+        }`}
+      >
+        {icon}
+        <span className="ml-3">{text}</span>
+        <IconChevronDown isOpen={isOpen} />
+      </button>
+      <div
+        className={`overflow-hidden transition-all duration-300 ease-in-out ${
+          isOpen ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
+        }`}
+      >
+        <div className="pl-12 pr-2 pt-1 pb-1 space-y-1">{children}</div>
+      </div>
+    </div>
+  );
+};
+
 export default function StudentLayout({ children }) {
   const { user, loading, isAuthenticated, isStudent, logout } = useAuth();
   const router = useRouter();
@@ -47,64 +115,7 @@ export default function StudentLayout({ children }) {
 
   if (!isAuthenticated || !isStudent) return null;
 
-  // Component link sidebar để tái sử dụng
-  const SidebarLink = ({ href, text, icon }) => {
-    const isActive = pathname === href;
 
-    return (
-      <Link
-        href={href}
-        className={`flex items-center w-full text-left px-4 py-3 rounded-lg transition-colors duration-200 mb-1 ${
-          isActive
-            ? "bg-blue-600 text-white shadow-md"
-            : darkMode
-              ? "text-gray-400 hover:bg-gray-700 hover:text-gray-100"
-              : "text-gray-600 hover:bg-gray-100 hover:text-gray-800"
-        }`}
-      >
-        {icon}
-        <span className="ml-3 font-medium">{text}</span>
-      </Link>
-    );
-  };
-
-  // Component cho menu có thể thu gọn
-  const CollapsibleMenu = ({ text, icon, children, baseRoute }) => {
-    const isActive = pathname.startsWith(baseRoute);
-    const [isOpen, setIsOpen] = useState(isActive);
-
-    useEffect(() => {
-      if (isActive) {
-        setIsOpen(true);
-      }
-    }, [isActive]);
-
-    return (
-      <div>
-        <button
-          onClick={() => setIsOpen(!isOpen)}
-          className={`flex items-center w-full text-left px-4 py-3 rounded-lg transition-colors duration-200 mb-1 ${
-            isActive
-              ? "text-blue-600 font-semibold"
-              : darkMode
-                ? "text-gray-400 hover:bg-gray-700 hover:text-gray-100"
-                : "text-gray-600 hover:bg-gray-100"
-          }`}
-        >
-          {icon}
-          <span className="ml-3 font-medium">{text}</span>
-          <IconChevronDown isOpen={isOpen} />
-        </button>
-        <div
-          className={`overflow-hidden transition-all duration-300 ease-in-out ${
-            isOpen ? "max-h-screen" : "max-h-0"
-          }`}
-        >
-          <div className="pl-12 pr-2 pt-1 pb-1 space-y-1">{children}</div>
-        </div>
-      </div>
-    );
-  };
 
   return (
     <div className={`flex h-screen transition-colors duration-300 ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
@@ -128,7 +139,7 @@ export default function StudentLayout({ children }) {
 
           <p className="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider mt-6 mb-2">Luyện tập</p>
           <SidebarLink href="/student/practice-tests" text="Luyện đề" icon={<IconTest />} />
-          <SidebarLink href="/student/practice" text="Luyện tập" icon={<IconPractice />} />
+          <SidebarLink href="/student/practice" text="Ôn tập" icon={<IconPractice />} />
 
           <p className="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider mt-6 mb-2">Thông tin</p>
           <SidebarLink href="/student/announcements" text="Thông báo" icon={<IconBell />} />
@@ -154,7 +165,7 @@ export default function StudentLayout({ children }) {
           <div className="flex items-center space-x-4">
             {/* Nút đổi Theme */}
             <button onClick={toggleTheme} className={`p-2 rounded-full transition-colors ${darkMode ? "hover:bg-gray-700 text-yellow-400" : "hover:bg-gray-100 text-gray-600"}`} title="Đổi giao diện">
-               {darkMode ? <IconSun /> : <IconMoon />}
+              {darkMode ? <IconSun /> : <IconMoon />}
             </button>
 
             <NotificationDropdown />

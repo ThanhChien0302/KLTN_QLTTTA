@@ -139,7 +139,6 @@ exports.submitMockTest = async (req, res) => {
     const tongSoCau = cauHois.length;
     let diemSo = 0;
     
-    // Simple proportional score out of 10. You can change this scaling based on exact requirement.
     if (tongSoCau > 0) {
       diemSo = parseFloat(((soCauDung / tongSoCau) * 10).toFixed(2));
     }
@@ -153,6 +152,14 @@ exports.submitMockTest = async (req, res) => {
       thoiGianLamBai,
       chiTiet: chitietArr
     });
+
+    // Tự động dọn dẹp: Chỉ lưu tối đa 10 kết quả gần nhất của học viên này
+    const maxResultsToKeep = 10;
+    const userResults = await KetQuaDeThi.find({ userId }).sort({ createdAt: -1 }).select('_id');
+    if (userResults.length > maxResultsToKeep) {
+      const idsToDelete = userResults.slice(maxResultsToKeep).map(result => result._id);
+      await KetQuaDeThi.deleteMany({ _id: { $in: idsToDelete } });
+    }
 
     res.status(201).json({ success: true, data: testResult });
 
