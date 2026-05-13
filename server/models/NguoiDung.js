@@ -27,7 +27,7 @@ const nguoiDungSchema = new mongoose.Schema({
   },
   gioitinh: {
     type: Boolean,
-    default: true // true for male, false for female or vice versa (as per boolean type)
+    default: true // true for male, false for female 
   },
   ngaysinh: {
     type: Date

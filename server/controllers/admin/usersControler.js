@@ -1,6 +1,7 @@
 const NguoiDung = require('../../models/NguoiDung');
 const HocVien = require('../../models/HocVien');
 const GiangVien = require('../../models/GiangVien');
+const { validateTeacherNgaysinh } = require('../../utils/teacherMinAge');
 const KhoaHoc = require('../../models/KhoaHoc');
 const BuoiHoc = require('../../models/BuoiHoc');
 const bcrypt = require('bcryptjs');
@@ -294,6 +295,11 @@ const createTeacher = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Mật khẩu phải > 6 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt' });
         }
 
+        const ageCheckCreate = validateTeacherNgaysinh(ngaysinh, { requirePresent: true });
+        if (!ageCheckCreate.ok) {
+            return res.status(400).json({ success: false, message: ageCheckCreate.message });
+        }
+
         const exists = await NguoiDung.findOne({ email });
         if (exists) {
             return res.status(409).json({ success: false, message: 'Email đã được sử dụng' });
@@ -345,6 +351,11 @@ const updateTeacher = async (req, res) => {
 
         if (!user) {
             return res.status(404).json({ success: false, message: 'Không tìm thấy giảng viên' });
+        }
+
+        const ageCheckUpdate = validateTeacherNgaysinh(ngaysinh, { requirePresent: false });
+        if (!ageCheckUpdate.ok) {
+            return res.status(400).json({ success: false, message: ageCheckUpdate.message });
         }
 
         user.hovaten = hovaten;
@@ -767,6 +778,11 @@ const getTeacherProfile = async (req, res) => {
 const updateTeacherProfile = async (req, res) => {
     try {
         const { hovaten, soDienThoai, diachi, gioitinh, ngaysinh, TrinhDoHocVan, kinhnghiem, chuyenmon } = req.body;
+
+        const ageCheckProfile = validateTeacherNgaysinh(ngaysinh, { requirePresent: false });
+        if (!ageCheckProfile.ok) {
+            return res.status(400).json({ success: false, message: ageCheckProfile.message });
+        }
 
         const genderValue = normalizeGenderToBoolean(gioitinh);
         const userUpdate = { hovaten, soDienThoai, diachi, ngaysinh };

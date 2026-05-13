@@ -23,7 +23,6 @@ const baiHocSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'File'
   },
-  // Hỗ trợ nhiều tài liệu đính kèm (phục vụ UI danh sách file)
   files: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'File'

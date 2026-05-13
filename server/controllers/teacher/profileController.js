@@ -1,5 +1,6 @@
 const GiangVien = require("../../models/GiangVien");
 const NguoiDung = require("../../models/NguoiDung");
+const { validateTeacherNgaysinh } = require("../../utils/teacherMinAge");
 const bcrypt = require("bcryptjs");
 // GET PROFILE
 exports.getProfile = async (req, res) => {
@@ -41,6 +42,11 @@ exports.updateProfile = async (req, res) => {
             return res.status(400).json({
                 message: "Số điện thoại không hợp lệ. Vui lòng nhập đúng 10 chữ số!"
             });
+        }
+
+        const ageCheck = validateTeacherNgaysinh(dateOfBirth, { requirePresent: false });
+        if (!ageCheck.ok) {
+            return res.status(400).json({ message: ageCheck.message });
         }
 
         // UPDATE USER

@@ -32,7 +32,8 @@ export function NotificationProvider({ children }) {
   return (
     <NotificationContext.Provider value={value}>
       {children}
-      <div className="fixed top-4 right-4 z-[100] space-y-2 w-[min(90vw,360px)]">
+      {/* Above admin Modal (9999) / ConfirmModal (10000) so toasts stay visible */}
+      <div className="fixed top-4 right-4 z-[20000] space-y-2 w-[min(90vw,360px)]">
         {items.map((item) => (
           <div
             key={item.id}

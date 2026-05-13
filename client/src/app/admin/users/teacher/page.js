@@ -8,7 +8,7 @@ import Modal from "../../../components/Modal";
 import PasswordStrength from "../../../components/PasswordStrength";
 import InputField from "../../../components/InputField";
 import AdminPageTitle from "../../components/AdminPageTitle";
-import { toDateInputValue } from "../../../../lib/dateFormat";
+import { toDateInputValue, fromDateInputValue, getFullAgeYears, MIN_TEACHER_AGE_YEARS } from "../../../../lib/dateFormat";
 
 const PlusIcon = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className || "w-5 h-5"}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>;
 const PencilIcon = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className || "w-4 h-4"}><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" /></svg>;
@@ -163,6 +163,35 @@ export default function TeacherAccountsPage() {
       setFormError("Mật khẩu mới phải > 6 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt.");
       notifyError("Mật khẩu mới chưa đủ mạnh.");
       return;
+    }
+
+    const birth = formData.ngaysinh ? fromDateInputValue(formData.ngaysinh) : null;
+    if (isCreateMode) {
+      if (!String(formData.ngaysinh || "").trim() || !birth) {
+        setFormError("Vui lòng nhập ngày sinh hợp lệ.");
+        notifyError("Vui lòng nhập ngày sinh.");
+        return;
+      }
+      const age = getFullAgeYears(birth);
+      if (age < MIN_TEACHER_AGE_YEARS) {
+        const msg = `Giảng viên phải từ ${MIN_TEACHER_AGE_YEARS} tuổi trở lên. Tuổi hiện tại theo ngày sinh: ${age} tuổi.`;
+        setFormError(msg);
+        notifyError(msg);
+        return;
+      }
+    } else if (String(formData.ngaysinh || "").trim()) {
+      if (!birth) {
+        setFormError("Ngày sinh không hợp lệ.");
+        notifyError("Ngày sinh không hợp lệ.");
+        return;
+      }
+      const age = getFullAgeYears(birth);
+      if (age < MIN_TEACHER_AGE_YEARS) {
+        const msg = `Giảng viên phải từ ${MIN_TEACHER_AGE_YEARS} tuổi trở lên. Tuổi hiện tại theo ngày sinh: ${age} tuổi.`;
+        setFormError(msg);
+        notifyError(msg);
+        return;
+      }
     }
 
     try {
@@ -371,7 +400,12 @@ export default function TeacherAccountsPage() {
               disabled={!isCreateMode}
             />
             <InputField label="Số điện thoại" name="soDienThoai" value={formData.soDienThoai} onChange={handleFieldChange} />
-            <InputField label="Ngày sinh" name="ngaysinh" type="date" value={formData.ngaysinh} onChange={handleFieldChange} />
+            <div>
+              <InputField label="Ngày sinh" name="ngaysinh" type="date" value={formData.ngaysinh} onChange={handleFieldChange} />
+              <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">
+                {`Giảng viên phải từ ${MIN_TEACHER_AGE_YEARS} tuổi trở lên (tính đủ năm theo ngày sinh).`}
+              </p>
+            </div>
             <InputField
               label="Địa chỉ thường trú"
               name="diachi"
@@ -422,7 +456,12 @@ export default function TeacherAccountsPage() {
             disabled={!isCreateMode}
           />
           <InputField label="Số điện thoại" name="soDienThoai" value={formData.soDienThoai} onChange={handleFieldChange} />
-          <InputField label="Ngày sinh" name="ngaysinh" type="date" value={formData.ngaysinh} onChange={handleFieldChange} />
+          <div>
+            <InputField label="Ngày sinh" name="ngaysinh" type="date" value={formData.ngaysinh} onChange={handleFieldChange} />
+            <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">
+              {`Giảng viên phải từ ${MIN_TEACHER_AGE_YEARS} tuổi trở lên (tính đủ năm theo ngày sinh).`}
+            </p>
+          </div>
           <InputField
             label="Địa chỉ thường trú"
             name="diachi"

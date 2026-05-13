@@ -21,7 +21,7 @@ const nopBaiSchema = new mongoose.Schema({
   },
   trangthai: {
     type: String,
-    enum: ["chờ chấm", "đã chấm", "yêu cầu làm lại"],
+    enum: ["chờ chấm", "đã chấm", ],
     default: "chờ chấm"
   },
   nhanxet: {

@@ -1505,9 +1505,6 @@ function SampleTestEditor({
   ];
 
   const capDoOptions = [
-    { value: "easy", label: "easy" },
-    { value: "medium", label: "medium" },
-    { value: "hard", label: "hard" },
     { value: "dễ", label: "dễ" },
     { value: "trung bình", label: "trung bình" },
     { value: "khó", label: "khó" },
