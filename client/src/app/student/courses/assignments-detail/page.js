@@ -16,9 +16,18 @@ export default function AssignmentDetail() {
   const [submitError, setSubmitError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [courseIdState, setCourseIdState] = useState(courseId);
-  
+
   const [selectedFile, setSelectedFile] = useState(null);
   const fileInputRef = useRef(null);
+
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+
+  const showToast = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+    setTimeout(() => {
+      setToast(prev => ({ ...prev, show: false }));
+    }, 3000);
+  };
 
   useEffect(() => {
     let currentCourseId = courseId;
@@ -44,7 +53,7 @@ export default function AssignmentDetail() {
         });
 
         const result = await res.json();
-        
+
         if (result.success) {
           setData(result.data);
         } else {
@@ -83,8 +92,9 @@ export default function AssignmentDetail() {
 
   const handleSubmit = async () => {
     if (!selectedFile) {
-       setSubmitError("Vui lòng chọn file để nộp.");
-       return;
+      setSubmitError("Vui lòng chọn file để nộp.");
+      showToast("Vui lòng chọn file để nộp.", "error");
+      return;
     }
 
     setIsSubmitting(true);
@@ -93,7 +103,7 @@ export default function AssignmentDetail() {
     try {
       const token = localStorage.getItem("token");
       const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api";
-      
+
       const formData = new FormData();
       formData.append("baitapID", id);
       formData.append("file", selectedFile);
@@ -115,13 +125,15 @@ export default function AssignmentDetail() {
           submission: result.data
         }));
         setSelectedFile(null);
-        alert("Nộp bài thành công!");
+        showToast("Nộp bài thành công!", "success");
       } else {
         setSubmitError(result.message || "Không thể nộp bài.");
+        showToast(result.message || "Không thể nộp bài.", "error");
       }
     } catch (err) {
       console.error("Lỗi khi nộp bài:", err);
       setSubmitError("Lỗi kết nối khi nộp bài.");
+      showToast("Lỗi kết nối khi nộp bài.", "error");
     } finally {
       setIsSubmitting(false);
     }
@@ -209,7 +221,7 @@ export default function AssignmentDetail() {
           {assignment.file && (
             <div className="mt-8 pt-6 border-t border-gray-100">
               <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-4">Tài liệu đính kèm</h3>
-              <a 
+              <a
                 href={assignment.file.url?.startsWith('http') ? assignment.file.url : API_URL + assignment.file.url}
                 target="_blank"
                 rel="noreferrer"
@@ -223,65 +235,65 @@ export default function AssignmentDetail() {
             </div>
           )}
         </div>
-        
+
         {/* Lịch sử nộp bài & Chấm điểm */}
         {submission && (
           <div className="p-8 border-b border-gray-100 bg-blue-50/30">
             <h3 className="text-lg font-bold text-gray-900 mb-4">Kết Quả Nộp Bài</h3>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                 <p className="text-sm text-gray-500 font-semibold mb-1">Thời gian nộp:</p>
-                 <p className="text-gray-900">{new Date(submission.thoigian).toLocaleString("vi-VN")}</p>
-                 
-                 <div className="mt-4">
-                   <p className="text-sm text-gray-500 font-semibold mb-2">File đã nộp:</p>
-                   {submission.filenop ? (
-                     <a 
-                        href={submission.filenop.url?.startsWith('http') ? submission.filenop.url : API_URL + submission.filenop.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center text-blue-600 hover:text-blue-800 break-all"
-                      >
-                       <svg className="w-4 h-4 mr-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                       </svg>
-                       {submission.filenop.originalName || "File bài làm"}
-                     </a>
-                   ) : (
-                     <p className="text-gray-500 italic">Không có file đính kèm</p>
-                   )}
-                 </div>
+                <p className="text-sm text-gray-500 font-semibold mb-1">Thời gian nộp:</p>
+                <p className="text-gray-900">{new Date(submission.thoigian).toLocaleString("vi-VN")}</p>
+
+                <div className="mt-4">
+                  <p className="text-sm text-gray-500 font-semibold mb-2">File đã nộp:</p>
+                  {submission.filenop ? (
+                    <a
+                      href={submission.filenop.url?.startsWith('http') ? submission.filenop.url : API_URL + submission.filenop.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center text-blue-600 hover:text-blue-800 break-all"
+                    >
+                      <svg className="w-4 h-4 mr-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                      </svg>
+                      {submission.filenop.originalName || "File bài làm"}
+                    </a>
+                  ) : (
+                    <p className="text-gray-500 italic">Không có file đính kèm</p>
+                  )}
+                </div>
               </div>
-              
+
               <div className="bg-white p-4 justify-center flex flex-col rounded-md shadow-sm border border-gray-100">
-                 {submission.trangthai === 'đã chấm' ? (
-                   <>
-                     <div className="text-center mb-2">
-                       <span className="text-3xl font-extrabold text-blue-600">{submission.diem}</span>
-                       <span className="text-gray-500 text-lg"> /{assignment.diem}</span>
-                     </div>
-                     {submission.nhanxet && (
-                       <div className="mt-2 text-sm text-gray-700 bg-gray-50 p-3 rounded italic">
-                         <span className="font-semibold block mb-1">Nhận xét:</span>
-                         {submission.nhanxet}
-                       </div>
-                     )}
-                   </>
-                 ) : (
-                   <div className="text-center text-gray-500 py-4">
-                      Bài làm đang chờ giáo viên chấm điểm
-                   </div>
-                 )}
+                {submission.trangthai === 'đã chấm' ? (
+                  <>
+                    <div className="text-center mb-2">
+                      <span className="text-3xl font-extrabold text-blue-600">{submission.diem}</span>
+                      <span className="text-gray-500 text-lg"> /{assignment.diem}</span>
+                    </div>
+                    {submission.nhanxet && (
+                      <div className="mt-2 text-sm text-gray-700 bg-gray-50 p-3 rounded italic">
+                        <span className="font-semibold block mb-1">Nhận xét:</span>
+                        {submission.nhanxet}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-center text-gray-500 py-4">
+                    Bài làm đang chờ giáo viên chấm điểm
+                  </div>
+                )}
               </div>
             </div>
-            
+
             {submission.filedapan && submission.filedapan.length > 0 && (
               <div className="mt-6">
                 <p className="text-sm text-gray-500 font-semibold mb-2">File bài sửa / đáp án:</p>
                 <div className="flex flex-col gap-2">
                   {submission.filedapan.map((fd, idx) => (
-                    <a 
+                    <a
                       key={idx}
                       href={fd.url?.startsWith('http') ? fd.url : API_URL + fd.url}
                       target="_blank"
@@ -304,7 +316,7 @@ export default function AssignmentDetail() {
             <h3 className="text-lg font-bold text-gray-900 mb-4">
               {submission ? "Nộp Lại Bài" : "Nộp Bài"}
             </h3>
-            
+
             {new Date() > new Date(assignment.hannop) ? (
               <div className="p-4 bg-red-50 text-red-600 rounded-md mb-4 border border-red-100 flex items-center">
                 <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -314,20 +326,20 @@ export default function AssignmentDetail() {
               </div>
             ) : null}
 
-            <div 
+            <div
               className={`border-2 border-dashed rounded-lg p-10 text-center transition-colors cursor-pointer
                 ${selectedFile ? 'border-blue-400 bg-blue-50' : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'}`}
               onDrop={handleDrop}
               onDragOver={handleDragOver}
               onClick={() => fileInputRef.current?.click()}
             >
-              <input 
-                type="file" 
-                className="hidden" 
+              <input
+                type="file"
+                className="hidden"
                 ref={fileInputRef}
                 onChange={handleFileChange}
               />
-              
+
               {!selectedFile ? (
                 <>
                   <svg className="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
@@ -344,10 +356,10 @@ export default function AssignmentDetail() {
               ) : (
                 <div className="flex items-center justify-center space-x-3 text-blue-800">
                   <svg className="w-8 h-8 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
                   <span className="font-medium text-lg truncate max-w-full">{selectedFile.name}</span>
-                  <button 
+                  <button
                     onClick={(e) => { e.stopPropagation(); setSelectedFile(null); }}
                     className="ml-2 text-red-500 hover:text-red-700 bg-white rounded-full p-1 shadow-sm"
                   >
@@ -382,6 +394,25 @@ export default function AssignmentDetail() {
           </div>
         )}
       </div>
+
+      {/* Toast Notification */}
+      {toast.show && (
+        <div className={`fixed bottom-8 right-8 z-50 px-6 py-4 rounded-xl shadow-xl flex items-center gap-3 animate-slide-in-up transition-all ${toast.type === 'success'
+          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-emerald-200/50'
+          : 'bg-red-50 text-red-700 border border-red-200 shadow-red-200/50'
+          }`}>
+          {toast.type === 'success' ? (
+            <div className="p-1 bg-emerald-100 rounded-full text-emerald-600">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+            </div>
+          ) : (
+            <div className="p-1 bg-red-100 rounded-full text-red-600">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            </div>
+          )}
+          <span className="font-semibold">{toast.message}</span>
+        </div>
+      )}
     </div>
   );
 }

@@ -21,6 +21,7 @@ export default function PracticeList() {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedType, setSelectedType] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
 
   useEffect(() => {
     const fetchPractices = async () => {
@@ -88,7 +89,15 @@ export default function PracticeList() {
     // Lọc theo drop-down option
     const matchType = selectedType === "all" || pType === selectedType;
 
-    return matchSearch && matchType;
+    // Lọc theo trạng thái
+    let matchStatus = true;
+    if (statusFilter === "completed") {
+      matchStatus = !!practice.ketQua;
+    } else if (statusFilter === "not_completed") {
+      matchStatus = !practice.ketQua;
+    }
+
+    return matchSearch && matchType && matchStatus;
   });
 
   // Nhóm các bài luyện tập đã lọc
@@ -135,6 +144,18 @@ export default function PracticeList() {
               ))}
             </select>
           </div>
+
+          <div className="w-full md:w-48">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer font-medium text-gray-700 dark:text-gray-300"
+            >
+              <option value="all">Tất cả trạng thái</option>
+              <option value="completed">Đã làm</option>
+              <option value="not_completed">Chưa làm</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -160,8 +181,15 @@ export default function PracticeList() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {items.map((practice) => (
                     <div key={practice._id} className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 hover:shadow-md transition-shadow overflow-hidden flex flex-col">
-                      <div className={`px-4 py-2 ${typeInfo.color} font-medium text-sm border-b dark:border-gray-800`}>
-                        {typeInfo.label}
+                      <div className={`px-4 py-2 ${typeInfo.color} font-medium text-sm border-b dark:border-gray-800 flex justify-between items-center`}>
+                        <span>{typeInfo.label}</span>
+                        {practice.ketQua && (
+                          <span className="bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded-full font-bold">
+                            {practice.ketQua.tongSoCau > 0 
+                              ? `Đã làm: ${practice.ketQua.soCauDung}/${practice.ketQua.tongSoCau}`
+                              : "Đã làm"}
+                          </span>
+                        )}
                       </div>
                       <div className="p-5 flex-1 flex flex-col">
                         <h3 className="font-bold text-gray-800 dark:text-white text-lg mb-2 line-clamp-2">{practice.tenBai}</h3>

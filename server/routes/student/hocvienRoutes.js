@@ -35,6 +35,7 @@ router.get('/overview', protect, studentDashboardController.getDashboardOverview
 const practiceController = require('../../controllers/student/practiceController');
 router.get('/practice', protect, practiceController.getPracticeList);
 router.get('/practice/:id', protect, practiceController.getPracticeDetail);
+router.post('/practice/:id/submit', protect, practiceController.submitPracticeResult);
 
 // Routes Luyện Đề (Mock Tests)
 const mockTestController = require('../../controllers/student/mockTestController');
