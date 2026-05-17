@@ -736,7 +736,7 @@ export default function Profile() {
 
       {/* Toast Notification */}
       {toast.show && (
-        <div className={`fixed bottom-8 right-8 z-50 px-6 py-4 rounded-xl shadow-xl flex items-center gap-3 animate-slide-in-up transition-all ${toast.type === 'success'
+        <div className={`fixed top-20 right-8 z-[9999] px-6 py-4 rounded-xl shadow-xl flex items-center gap-3 animate-fade-in transition-all ${toast.type === 'success'
           ? 'bg-blue-50 text-blue-700 border border-blue-200 shadow-blue-200/50'
           : 'bg-red-50 text-red-700 border border-red-200 shadow-red-200/50'
           }`}>

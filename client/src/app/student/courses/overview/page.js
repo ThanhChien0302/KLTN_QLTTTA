@@ -74,9 +74,9 @@ export default function CourseOverview() {
               activeCourses.map((course, idx) => (
                 <div key={idx} className="flex flex-col p-4 bg-gray-50 rounded-lg hover:shadow-sm transition-shadow border border-gray-100">
                   <div className="flex justify-between items-center mb-2">
-                    <Link href={`/student/courses/assignments?courseId=${course.id}`} className="font-medium text-gray-800 hover:text-blue-600 transition-colors">
+                    <div className="font-medium text-gray-800 transition-colors">
                       {course.name}
-                    </Link>
+                    </div>
                     <span className="text-sm font-semibold text-blue-600">{course.progress}%</span>
                   </div>
                   <div className="w-full h-2.5 bg-gray-200 rounded-full overflow-hidden">

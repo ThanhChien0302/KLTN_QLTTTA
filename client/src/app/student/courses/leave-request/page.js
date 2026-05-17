@@ -14,7 +14,14 @@ export default function LeaveRequest() {
     description: ''
   });
 
-  const [message, setMessage] = useState('');
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+
+  const showToast = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+    setTimeout(() => {
+      setToast(prev => ({ ...prev, show: false }));
+    }, 3000);
+  };
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
@@ -94,7 +101,7 @@ export default function LeaveRequest() {
       // Tìm dangKyKhoaHocId từ khóa học đã chọn
       const selectedCourse = courses.find(c => c.id === formData.courseId);
       if (!selectedCourse) {
-        setMessage("Vui lòng chọn khóa học hợp lệ.");
+        showToast("Vui lòng chọn khóa học hợp lệ.", "error");
         return;
       }
 
@@ -116,16 +123,15 @@ export default function LeaveRequest() {
 
       const data = await response.json();
       if (data.success) {
-        setMessage("Yêu cầu nghỉ phép đã được gửi!");
+        showToast("Yêu cầu nghỉ phép đã được gửi!", "success");
         setFormData({ courseId: '', sessionId: '', reason: '', description: '' });
         fetchLeaveRequests(); // Reload
-        setTimeout(() => setMessage(''), 3000);
       } else {
-        setMessage(data.message || 'Lỗi gửi yêu cầu!');
+        showToast(data.message || 'Lỗi gửi yêu cầu!', 'error');
       }
     } catch (error) {
       console.error(error);
-      setMessage("Lỗi kết nối máy chủ.");
+      showToast("Lỗi kết nối máy chủ.", "error");
     }
   };
 
@@ -142,12 +148,6 @@ export default function LeaveRequest() {
         <h1 className="text-2xl font-bold text-gray-800 mb-4">Xin Nghỉ Phép (Theo Buổi)</h1>
         <p className="text-gray-600">Gửi yêu cầu nghỉ phép cho các buổi học cụ thể</p>
       </div>
-
-      {message && (
-        <div className={`p-4 rounded-lg ${message.includes('thành công') || message.includes('được gửi') ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-          {message}
-        </div>
-      )}
 
       <div className="bg-white rounded-lg shadow-md p-6">
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -269,6 +269,25 @@ export default function LeaveRequest() {
           ))}
         </div>
       </div>
+
+      {/* Toast Notification */}
+      {toast.show && (
+        <div className={`fixed bottom-8 right-8 z-50 px-6 py-4 rounded-xl shadow-xl flex items-center gap-3 animate-slide-in-up transition-all ${toast.type === 'success'
+            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-emerald-200/50'
+            : 'bg-red-50 text-red-700 border border-red-200 shadow-red-200/50'
+          }`}>
+          {toast.type === 'success' ? (
+            <div className="p-1 bg-emerald-100 rounded-full text-emerald-600">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+            </div>
+          ) : (
+            <div className="p-1 bg-red-100 rounded-full text-red-600">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            </div>
+          )}
+          <span className="font-semibold">{toast.message}</span>
+        </div>
+      )}
     </div>
   );
 }

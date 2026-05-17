@@ -141,7 +141,31 @@ export default function PracticeTestingPage() {
       }
     });
     
-    setScore({ correct: correctCount, total: gradeableTotal });
+    const newScore = { correct: correctCount, total: gradeableTotal };
+    setScore(newScore);
+
+    // Call API to save practice result
+    if (gradeableTotal > 0) {
+      const saveResult = async () => {
+        try {
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+          await fetch(`${apiUrl}/student/practice/${practiceId}/submit`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${localStorage.getItem("token")}`
+            },
+            body: JSON.stringify({
+              soCauDung: correctCount,
+              tongSoCau: gradeableTotal
+            })
+          });
+        } catch (err) {
+          console.error("Lỗi khi lưu kết quả:", err);
+        }
+      };
+      saveResult();
+    }
   };
 
   const formatTime = (seconds) => {

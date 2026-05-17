@@ -170,8 +170,10 @@ export default function Profile() {
 
       setIsEditing(false);
       showToast('Cập nhật thông tin thành công!');
+      toast.success('Cập nhật thông tin thành công!');
     } catch (error) {
       showToast('Có lỗi xảy ra: ' + error.message, 'error');
+      toast.error('Có lỗi xảy ra: ' + error.message);
     }
   };
 
@@ -179,11 +181,13 @@ export default function Profile() {
     // Kiểm tra tính hợp lệ
     if (!passwordRegex.test(passwordData.newPassword)) {
       showToast("Mật khẩu mới phải từ 6 ký tự trở lên, có ít nhất 1 chữ IN HOA và 1 ký tự đặc biệt!", "error");
+      toast.error("Mật khẩu mới phải từ 6 ký tự trở lên, có ít nhất 1 chữ IN HOA và 1 ký tự đặc biệt!");
       return;
     }
 
     if (passwordData.newPassword !== passwordData.confirmPassword) {
       showToast("Xác nhận mật khẩu mới không khớp!", "error");
+      toast.error("Xác nhận mật khẩu mới không khớp!");
       return;
     }
 
@@ -209,9 +213,11 @@ export default function Profile() {
       }
 
       showToast('Đổi mật khẩu thành công!');
+      toast.success('Đổi mật khẩu thành công!');
       setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
     } catch (error) {
       showToast('Có lỗi xảy ra: ' + error.message, 'error');
+      toast.error('Có lỗi xảy ra: ' + error.message);
     }
   };
 
