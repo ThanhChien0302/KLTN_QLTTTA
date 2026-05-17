@@ -1590,8 +1590,33 @@ exports.deleteCourse = async (req, res) => {
     const courseId = asObjectId(req.params.id);
     if (!courseId) return res.status(400).json({ success: false, message: "Tham số định danh không hợp lệ." });
 
-    const existingCourse = await KhoaHoc.findById(courseId).select("_id").lean();
+    const existingCourse = await KhoaHoc.findById(courseId).select("_id tenkhoahoc").lean();
     if (!existingCourse) return res.status(404).json({ success: false, message: "Không tìm thấy khóa học" });
+
+    const todayStart = startOfDayLocal(new Date());
+    const futureSessions = await BuoiHoc.find({
+      KhoaHocID: courseId,
+      ngayhoc: { $gte: todayStart },
+    })
+      .select("_id ngayhoc giobatdau gioketthuc")
+      .sort({ ngayhoc: 1, giobatdau: 1 })
+      .lean();
+
+    if (futureSessions.length > 0) {
+      const nextSession = futureSessions[0];
+      return res.status(409).json({
+        success: false,
+        message: `Không thể xóa khóa học ${existingCourse.tenkhoahoc || ""} vì vẫn còn buổi học trong tương lai.`,
+        data: {
+          nextSession: {
+            _id: nextSession._id,
+            ngayhoc: formatNgayDdMmYyyy(nextSession.ngayhoc),
+            tuGio: formatHHmmFromDate(nextSession.giobatdau),
+            denGio: formatHHmmFromDate(nextSession.gioketthuc),
+          },
+        },
+      });
+    }
 
     const buoiIds = await BuoiHoc.find({ KhoaHocID: courseId }).distinct("_id");
     if (buoiIds.length > 0) {

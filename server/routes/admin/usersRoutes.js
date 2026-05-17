@@ -2,7 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const router = express.Router();
 const { protect, admin } = require('../../middlewares/authMiddleware');
-const { registerStudentFace } = require('../../controllers/admin/faceEnrollmentController');
+const { registerStudentFace, deleteStudentFace } = require('../../controllers/admin/faceEnrollmentController');
 
 const faceUpload = multer({
   storage: multer.memoryStorage(),
@@ -56,6 +56,7 @@ studentAdminRouter.post(
   faceUpload.single('image'),
   registerStudentFace
 );
+studentAdminRouter.delete('/:id/face', deleteStudentFace);
 studentAdminRouter.get('/', getAllStudents);                         // Lấy danh sách học viên
 studentAdminRouter.get('/:id', getStudentById);                     // Lấy chi tiết 1 học viên
 studentAdminRouter.post('/', createStudent);                        // Tạo tài khoản học viên

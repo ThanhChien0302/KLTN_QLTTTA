@@ -15,6 +15,14 @@ exports.registerStudentFace = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Không tìm thấy học viên' });
     }
 
+    const existingHocVien = await HocVien.findOne({ userId: user._id }).lean();
+    if (existingHocVien?.faceEmbedding?.length) {
+      return res.status(409).json({
+        success: false,
+        message: 'Học viên đã có dữ liệu khuôn mặt, chỉ được đăng ký khi trống',
+      });
+    }
+
     let embedding;
     try {
       embedding = await enrollImageBuffer(req.file.buffer);
@@ -49,5 +57,28 @@ exports.registerStudentFace = async (req, res) => {
       success: false,
       message: error.message || 'Lỗi server',
     });
+  }
+};
+
+exports.deleteStudentFace = async (req, res) => {
+  try {
+    const user = await NguoiDung.findOne({ _id: req.params.id, role: 'student' });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy học viên' });
+    }
+
+    const hocVienInfo = await HocVien.findOne({ userId: user._id });
+    if (!hocVienInfo || !hocVienInfo.faceEmbedding?.length) {
+      return res.status(404).json({ success: false, message: 'Học viên chưa có dữ liệu khuôn mặt' });
+    }
+
+    hocVienInfo.faceEmbedding = [];
+    await hocVienInfo.save();
+    await syncFaceIndexFromDatabase();
+
+    return res.status(200).json({ success: true, message: 'Đã xóa dữ liệu khuôn mặt' });
+  } catch (error) {
+    console.error('deleteStudentFace:', error);
+    return res.status(500).json({ success: false, message: error.message || 'Lỗi server' });
   }
 };

@@ -212,6 +212,22 @@ export default function StudentAccountsPage() {
     success("Đã đăng ký khuôn mặt thành công.");
   }, [success]);
 
+  const handleFaceDeleted = useCallback((studentId) => {
+    if (!studentId) return;
+    setUsers((prev) => prev.map((u) => {
+      if (u._id !== studentId) return u;
+      return {
+        ...u,
+        hocVienInfo: {
+          ...(u.hocVienInfo || {}),
+          faceEmbedding: [],
+          hasFaceEmbedding: false,
+        },
+      };
+    }));
+    warning("Đã xóa dữ liệu khuôn mặt.");
+  }, [warning]);
+
   const handleConfirmAction = async () => {
     if (!confirmModalData.id) return;
     const { type, id } = confirmModalData;
@@ -396,6 +412,7 @@ export default function StudentAccountsPage() {
               studentId={selectedUser?._id}
               hasFaceEmbedding={!!selectedUser?.hocVienInfo?.hasFaceEmbedding}
               onRegistered={handleFaceRegistered}
+              onDeleted={handleFaceDeleted}
             />
             {formError && <p className="text-sm text-red-500">{formError}</p>}
             <button type="submit" className="admin-btn-accent w-full justify-center py-2">{isCreateMode ? "Tạo mới" : "Cập nhật thông tin"}</button>
@@ -448,6 +465,7 @@ export default function StudentAccountsPage() {
             studentId={selectedUser?._id}
             hasFaceEmbedding={!!selectedUser?.hocVienInfo?.hasFaceEmbedding}
             onRegistered={handleFaceRegistered}
+            onDeleted={handleFaceDeleted}
           />
           {formError && <p className="text-sm text-red-500">{formError}</p>}
           <div className="pt-4 flex flex-col gap-2">
@@ -491,6 +509,7 @@ function FaceEnrollmentSection({
   studentId,
   hasFaceEmbedding,
   onRegistered,
+  onDeleted,
 }) {
   const videoRef = useRef(null);
   const [scanning, setScanning] = useState(false);
@@ -522,6 +541,10 @@ function FaceEnrollmentSection({
 
   const scanFace = async () => {
     if (!videoRef.current || !studentId || !token) return;
+    if (hasFaceEmbedding) {
+      setScanError("Học viên đã có dữ liệu khuôn mặt, chỉ được đăng ký khi trống.");
+      return;
+    }
     const v = videoRef.current;
     if (!v.videoWidth) {
       setScanError("Camera chưa sẵn sàng.");
@@ -547,6 +570,25 @@ function FaceEnrollmentSection({
       const result = await r.json();
       if (!r.ok || !result.success) throw new Error(result.message || "Đăng ký khuôn mặt thất bại");
       onRegistered?.(result.data);
+    } catch (e) {
+      setScanError(e.message || "Lỗi");
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  const deleteFace = async () => {
+    if (!studentId || !token) return;
+    setScanning(true);
+    setScanError("");
+    try {
+      const r = await fetch(`${apiBase}/api/admin/users/students/${studentId}/face`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const result = await r.json();
+      if (!r.ok || !result.success) throw new Error(result.message || "Xóa khuôn mặt thất bại");
+      onDeleted?.(studentId);
     } catch (e) {
       setScanError(e.message || "Lỗi");
     } finally {
@@ -580,14 +622,24 @@ function FaceEnrollmentSection({
         className="w-full rounded-lg bg-black aspect-video object-cover max-h-56"
       />
       {camError && <p className="text-xs text-red-500">{camError}</p>}
-      <button
-        type="button"
-        onClick={scanFace}
-        disabled={scanning || !active || !!camError}
-        className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {scanning ? "Đang xử lý..." : "Quét mặt"}
-      </button>
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={scanFace}
+          disabled={scanning || !active || !!camError || hasFaceEmbedding}
+          className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {scanning ? "Đang xử lý..." : "Quét mặt"}
+        </button>
+        <button
+          type="button"
+          onClick={deleteFace}
+          disabled={scanning || !hasFaceEmbedding}
+          className="w-full py-2.5 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg text-sm font-medium border border-red-200 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Xóa dữ liệu
+        </button>
+      </div>
       {scanError && <p className="text-xs text-red-500">{scanError}</p>}
     </div>
   );

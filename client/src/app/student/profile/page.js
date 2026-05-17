@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import DateInputField from "../../components/DateInputField";
 import { formatDateDdMmYyyy, toDateInputValue } from "../../../lib/dateFormat";
@@ -33,6 +33,19 @@ export default function Profile() {
     newPassword: '',
     confirmPassword: ''
   });
+
+  // State đăng ký khuôn mặt
+  const [faceData, setFaceData] = useState({
+    image: null,
+    preview: '',
+  });
+  const [faceStatus, setFaceStatus] = useState({ hasFace: false, loading: false });
+  const [scanError, setScanError] = useState('');
+  const [isCapturing, setIsCapturing] = useState(false);
+  const faceStatusMessage = faceStatus.hasFace
+    ? 'Khuôn mặt đã được đăng ký, liên hệ admin để xin đăng ký lại'
+    : 'Chưa có dữ liệu khuôn mặt';
+  const videoRef = useRef(null);
 
   // State quản lý ẩn/hiện mật khẩu
   const [showPassword, setShowPassword] = useState({
@@ -148,6 +161,46 @@ export default function Profile() {
     setPasswordData(prev => ({ ...prev, [field]: value }));
   };
 
+  useEffect(() => {
+    const loadFaceState = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+        const response = await fetch(`${apiUrl}/student/profile`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await response.json();
+        const embedding = data?.faceEmbedding || data?.hocVienInfo?.faceEmbedding || [];
+        setFaceStatus({ hasFace: Array.isArray(embedding) && embedding.length > 0, loading: false });
+      } catch {
+        setFaceStatus({ hasFace: false, loading: false });
+      }
+    };
+
+    loadFaceState();
+  }, []);
+
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+      if (videoRef.current) videoRef.current.srcObject = stream;
+    } catch (error) {
+      showToast('Không mở được camera. Hãy cấp quyền trình duyệt.', 'error');
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'face') {
+      startCamera();
+    }
+    return () => {
+      const stream = videoRef.current?.srcObject;
+      if (stream) stream.getTracks().forEach(track => track.stop());
+      if (videoRef.current) videoRef.current.srcObject = null;
+    };
+  }, [activeTab]);
+
   const togglePassword = (field) => {
     setShowPassword(prev => ({ ...prev, [field]: !prev[field] }));
   };
@@ -180,6 +233,8 @@ export default function Profile() {
       showToast('Cập nhật thông tin thành công!');
     } catch (error) {
       showToast('Có lỗi xảy ra: ' + error.message, 'error');
+    } finally {
+      setIsCapturing(false);
     }
   };
 
@@ -222,6 +277,80 @@ export default function Profile() {
     }
   };
 
+  const handleCaptureAndSave = async () => {
+    if (isCapturing) return;
+    const video = videoRef.current;
+    if (!video || !video.videoWidth) {
+      showToast('Camera chưa sẵn sàng.', 'error');
+      return;
+    }
+
+    if (faceStatus.hasFace) {
+      showToast('Khuôn mặt đã được đăng ký, liên hệ admin để xin đăng ký lại.', 'error');
+      return;
+    }
+
+    setIsCapturing(true);
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const context = canvas.getContext('2d');
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.95));
+      if (!blob) {
+        throw new Error('Không tạo được ảnh chụp.');
+      }
+
+      const token = localStorage.getItem('token');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+      const formData = new FormData();
+      formData.append('image', blob, 'face.jpg');
+
+      const response = await fetch(`${apiUrl}/student/face-enrollment`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData
+      });
+
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || 'Không thể đăng ký khuôn mặt');
+      }
+
+      setFaceData({ image: blob, preview: canvas.toDataURL('image/jpeg') });
+      setFaceStatus({ hasFace: true, loading: false });
+      showToast('Đăng ký khuôn mặt thành công!');
+    } catch (error) {
+      showToast('Có lỗi xảy ra: ' + error.message, 'error');
+    } finally {
+      setIsCapturing(false);
+    }
+  };
+
+  const handleFaceSubmit = async () => {
+    return handleCaptureAndSave();
+  };
+
+  const handleDeleteFace = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+      const response = await fetch(`${apiUrl}/student/face-enrollment`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) throw new Error(data.message || 'Không thể xóa khuôn mặt');
+      setFaceStatus({ hasFace: false, loading: false });
+      setFaceData({ image: null, preview: '' });
+      showToast('Đã xóa dữ liệu khuôn mặt.');
+    } catch (error) {
+      showToast('Có lỗi xảy ra: ' + error.message, 'error');
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header Profile */}
@@ -259,6 +388,16 @@ export default function Profile() {
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
               Đổi mật khẩu
+            </button>
+            <button
+              onClick={() => setActiveTab('face')}
+              className={`px-5 py-2.5 text-sm font-semibold rounded-lg transition-all duration-300 flex items-center gap-2 ${activeTab === 'face'
+                ? 'bg-blue-500 text-white shadow-md shadow-blue-200'
+                : 'bg-gray-50 text-gray-600 hover:bg-blue-50 hover:text-blue-600'
+                }`}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 2a5 5 0 00-5 5v2a5 5 0 1010 0V7a5 5 0 00-5-5zm-7 9a7 7 0 0114 0c0 3.866-3.134 7-7 7s-7-3.134-7-7zm7 9c-4.418 0-8 1.79-8 4v1h16v-1c0-2.21-3.582-4-8-4z"></path></svg>
+              Đăng ký khuôn mặt
             </button>
           </nav>
         </div>
@@ -548,6 +687,46 @@ export default function Profile() {
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
                     Cập nhật mật khẩu
                   </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'face' && (
+            <div className="animate-fade-in w-full">
+              <div className="rounded-3xl overflow-hidden border border-blue-100 bg-black shadow-2xl min-h-[78vh] relative">
+                <video ref={videoRef} autoPlay playsInline muted className="absolute inset-0 h-full w-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/55" />
+
+                <div className="absolute top-0 left-0 right-0 p-4 md:p-6 flex justify-center">
+                  <div className={`px-4 py-2 rounded-full text-sm font-semibold shadow-lg border ${faceStatus.hasFace ? 'bg-red-50 text-red-700 border-red-200' : 'bg-white/95 text-emerald-700 border-emerald-200'}`}>
+                    {faceStatusMessage}
+                  </div>
+                </div>
+
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="w-[70vw] max-w-[560px] aspect-[3/4] rounded-[2rem] border-2 border-white/70 shadow-[0_0_0_9999px_rgba(0,0,0,0.06)]" />
+                </div>
+
+                <div className="absolute bottom-0 left-0 right-0 p-4 md:p-6">
+                  <div className="mx-auto max-w-3xl">
+                    <div className="rounded-3xl bg-white/92 backdrop-blur-md border border-white/60 shadow-xl p-4 md:p-5">
+                      <div className="flex flex-col md:flex-row md:items-center gap-4 justify-between">
+                        <div>
+                          <h3 className="text-lg md:text-xl font-bold text-gray-900">Đăng ký khuôn mặt</h3>
+                          <p className="text-sm text-gray-600 mt-1">Đặt mặt vào khung và bấm lưu hình ảnh để gửi lên hệ thống.</p>
+                        </div>
+                        <button
+                          onClick={handleCaptureAndSave}
+                          disabled={faceStatus.hasFace || isCapturing}
+                          className="min-w-[220px] px-6 py-4 rounded-2xl bg-blue-600 text-white font-bold text-base hover:bg-blue-700 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {isCapturing ? 'Đang xử lý...' : 'Lưu hình ảnh'}
+                        </button>
+                      </div>
+                      {scanError && <p className="text-sm text-red-500 mt-3">{scanError}</p>}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
