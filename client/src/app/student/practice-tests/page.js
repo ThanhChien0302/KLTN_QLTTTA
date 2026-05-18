@@ -144,7 +144,7 @@ export default function PracticeTests() {
           {history.length === 0 ? (
             <p className="text-sm text-gray-500 text-center py-4">Bạn chưa làm bài thi nào.</p>
           ) : (
-            <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+            <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
               {history.map(item => (
                 <div
                   key={item._id}
