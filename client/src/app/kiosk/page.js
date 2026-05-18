@@ -26,24 +26,7 @@ export default function KioskPage() {
   modalOpenRef.current = !!modal;
   const mrRef = useRef(null);
 
-  const reportMisidentification = useCallback(
-    async (hocvienId) => {
-      if (!credential || !hocvienId) return;
-      try {
-        await fetch(`${API_BASE}/api/kiosk/misidentification`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Kiosk-Key": credential,
-          },
-          body: JSON.stringify({ hocvienId }),
-        });
-      } catch {
-        /* ignore */
-      }
-    },
-    [credential]
-  );
+
 
   const resetRecognition = useCallback(
     (options) => {
@@ -64,7 +47,6 @@ export default function KioskPage() {
           : "Hướng mặt vào camera — đang nhận diện lại..."
       );
     },
-    [modal, lastRecognize, reportMisidentification]
   );
 
   useEffect(() => {
@@ -97,6 +79,29 @@ export default function KioskPage() {
     }
     setHydrated(true);
   }, []);
+
+  useEffect(() => {
+    if (!hydrated) return undefined;
+    if (!credential) return undefined;
+
+    let cancelled = false;
+    const syncAttendanceService = async () => {
+      try {
+        await fetch(`${ATTENDANCE_API_BASE}/sync-from-node`, {
+          method: "GET",
+        });
+      } catch {
+        if (!cancelled) {
+          /* ignore */
+        }
+      }
+    };
+
+    void syncAttendanceService();
+    return () => {
+      cancelled = true;
+    };
+  }, [hydrated, credential]);
 
   const saveCredential = (raw) => {
     const v = raw.trim();
@@ -516,7 +521,7 @@ export default function KioskPage() {
           </p>
         </header>
 
-        <div className="flex min-h-0 flex-1 flex-col">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <section className="flex flex-1 flex-col justify-center border-b border-[var(--kiosk-line)] px-6 py-8 min-h-0 overflow-hidden">
             <h2 className="text-[0.65rem] font-semibold uppercase tracking-[0.28em] text-[var(--kiosk-muted)] mb-5 font-[family-name:var(--font-kiosk-sans)]">
               Học viên
@@ -553,7 +558,7 @@ export default function KioskPage() {
             )}
           </section>
 
-          <section className="flex flex-1 flex-col px-6 py-8 min-h-0 overflow-y-auto">
+          <section className="flex flex-1 flex-col px-6 py-8 min-h-0 overflow-hidden">
             <h2 className="text-[0.65rem] font-semibold uppercase tracking-[0.28em] text-[var(--kiosk-muted)] mb-5 font-[family-name:var(--font-kiosk-sans)]">
               Buổi học
             </h2>

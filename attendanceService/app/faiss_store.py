@@ -20,6 +20,9 @@ class FaissGallery:
         self._index = None
         self._ids = []
 
+    def is_empty(self) -> bool:
+        return self._index is None or self._index.ntotal == 0
+
     def reload(self, items: List[dict]) -> int:
         """items: [{ hocvienId: str, embedding: list[float] }]"""
         self.clear()
@@ -33,6 +36,9 @@ class FaissGallery:
             self._emb[hid] = v.reshape(EMB_DIM)
         self._rebuild()
         return len(self._ids)
+
+    def is_empty(self) -> bool:
+        return self.size == 0
 
     def add_or_update(self, hocvien_id: str, embedding: List[float]) -> int:
         hid = str(hocvien_id).strip()

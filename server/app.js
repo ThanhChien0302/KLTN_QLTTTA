@@ -3,7 +3,7 @@ const http = require('http');
 var createError = require('http-errors');
 var express = require('express');
 const connectDB = require("./config/db");
-const { syncFaceIndexFromDatabase } = require("./services/faceIndexSyncService");
+const { queueFaceIndexSync } = require("./services/faceIndexSyncService");
 const { initSocket } = require("./socket/io");
 const { initKioskWs } = require("./socket/kioskWs");
 var path = require('path');
@@ -83,9 +83,11 @@ const startServer = async () => {
       const apiPaths = Object.keys(swaggerSpec.paths || {});
       console.log("Danh sach API da khai bao trong Swagger:");
       apiPaths.forEach((p) => console.log(`- ${p}`));
-      setTimeout(() => {
-        syncFaceIndexFromDatabase();
-      }, 1500);
+      queueFaceIndexSync({
+        delayMs: 1500,
+        maxAttempts: 12,
+        retryDelayMs: 5000,
+      });
     });
   } catch (error) {
     console.error("Failed to connect to Database. Server not started.", error);
