@@ -7,7 +7,7 @@ const WS_URL = `${API_BASE.replace(/^http/, "ws")}/api/kiosk/ws`;
 const SESSION_KEY = "kiosk_credential";
 const RECORD_SLICE_MS = 800;
 /** Chờ xác nhận điểm danh; hết giờ không thao tác → quét lại. */
-const CONFIRM_IDLE_MS = 10_000;
+const CONFIRM_IDLE_MS = 12_000;
 
 export default function KioskPage() {
   const videoRef = useRef(null);
@@ -68,10 +68,13 @@ export default function KioskPage() {
   );
 
   useEffect(() => {
-    if (!modal || confirming) return undefined;
-    const t = setTimeout(() => resetRecognition({ fromIdleTimeout: true }), CONFIRM_IDLE_MS);
+    if (!lastRecognize || confirming) return undefined;
+    const t = setTimeout(
+      () => resetRecognition({ fromIdleTimeout: true }),
+      CONFIRM_IDLE_MS
+    );
     return () => clearTimeout(t);
-  }, [modal, confirming, resetRecognition]);
+  }, [lastRecognize, confirming, resetRecognition]);
 
   useEffect(() => {
     if (modal) return;
@@ -514,39 +517,38 @@ export default function KioskPage() {
         </header>
 
         <div className="flex min-h-0 flex-1 flex-col">
-          <section className="flex flex-1 flex-col justify-center border-b border-[var(--kiosk-line)] px-6 py-8 min-h-0 overflow-y-auto">
+          <section className="flex flex-1 flex-col justify-center border-b border-[var(--kiosk-line)] px-6 py-8 min-h-0 overflow-hidden">
             <h2 className="text-[0.65rem] font-semibold uppercase tracking-[0.28em] text-[var(--kiosk-muted)] mb-5 font-[family-name:var(--font-kiosk-sans)]">
               Học viên
             </h2>
             {match ? (
               <div className="kiosk-reveal flex flex-col gap-5 text-center">
-                <div>
-                  <p
-                    className="text-2xl sm:text-[1.65rem] font-semibold text-[var(--kiosk-ink)] leading-tight font-[family-name:var(--font-kiosk-display)]"
-                  >
-                    {match.hovaten}
+                <div className="space-y-3 text-left rounded-2xl border border-[var(--kiosk-line)] bg-white/60 p-4 text-sm text-[var(--kiosk-ink)] shadow-sm">
+                  <p>
+                    <span className="block text-[0.65rem] uppercase tracking-[0.22em] text-[var(--kiosk-muted)] mb-1">
+                      Mã học viên
+                    </span>
+                    <span className="font-mono text-[var(--kiosk-accent)] font-semibold">
+                      {match.maHocVienDisplay}
+                    </span>
                   </p>
-                  {match.email ? (
-                    <p className="text-sm text-[var(--kiosk-muted)] mt-2 break-all font-[family-name:var(--font-kiosk-sans)]">
-                      {match.email}
-                    </p>
-                  ) : null}
-                  <p className="mt-4 inline-block rounded-xl bg-[var(--kiosk-accent-soft)] px-4 py-2 font-mono text-sm text-[var(--kiosk-accent)] border border-[var(--kiosk-accent)]/20">
-                    Mã {match.maHocVienDisplay}
+                  <p>
+                    <span className="block text-[0.65rem] uppercase tracking-[0.22em] text-[var(--kiosk-muted)] mb-1">
+                      Họ và tên
+                    </span>
+                    <span className="font-semibold">{match.hovaten || "—"}</span>
+                  </p>
+                  <p>
+                    <span className="block text-[0.65rem] uppercase tracking-[0.22em] text-[var(--kiosk-muted)] mb-1">
+                      Email
+                    </span>
+                    <span className="break-all">{match.email || "—"}</span>
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => resetRecognition({ reportBadMatch: true })}
-                  disabled={confirming}
-                  className="w-full max-w-xs mx-auto py-3 rounded-2xl border border-[var(--kiosk-accent)]/35 bg-white/60 text-[var(--kiosk-accent)] text-sm font-semibold hover:bg-white disabled:opacity-50 font-[family-name:var(--font-kiosk-sans)] transition-colors"
-                >
-                  Không phải tôi — quét lại
-                </button>
               </div>
             ) : (
               <p className="text-center text-[var(--kiosk-muted)] text-sm leading-relaxed px-1 font-[family-name:var(--font-kiosk-sans)]">
-                Hướng mặt vào camera. Tên và mã học viên hiển thị sau khi nhận diện.
+                Hướng mặt vào camera. Thông tin học viên sẽ hiển thị sau khi nhận diện.
               </p>
             )}
           </section>
@@ -588,14 +590,6 @@ export default function KioskPage() {
                     className="w-full py-3.5 rounded-2xl bg-[var(--kiosk-ink)] text-white font-semibold text-sm disabled:opacity-50 hover:bg-black transition-colors font-[family-name:var(--font-kiosk-sans)]"
                   >
                     {confirming ? "Đang gửi..." : "Xác nhận điểm danh"}
-                  </button>
-                  <button
-                    type="button"
-                    disabled={confirming}
-                    onClick={() => resetRecognition({ reportBadMatch: true })}
-                    className="w-full py-3 rounded-2xl border border-[var(--kiosk-line)] text-[var(--kiosk-muted)] text-sm font-medium hover:bg-white/80 disabled:opacity-50 font-[family-name:var(--font-kiosk-sans)]"
-                  >
-                    Không phải tôi / Hủy
                   </button>
                 </div>
               </div>

@@ -75,7 +75,18 @@ async function buildRecognizePayloadFromHocVienId(hocvienId, meta = {}) {
     };
   }
 
-  const user = await NguoiDung.findById(hv.userId).select('hovaten email').lean();
+  const user = await NguoiDung.findById(hv.userId)
+    .select('hovaten email soDienThoai gioitinh ngaysinh')
+    .lean();
+
+  const dangKysRaw = await DangKyKhoaHoc.find({ hocvienId })
+    .populate('KhoaHocID', 'tenkhoahoc')
+    .lean();
+  const registeredCourses = dangKysRaw.map((dk) => ({
+    dangkykhoahocId: dk._id.toString(),
+    khoaHocId: dk.KhoaHocID?._id?.toString?.() || dk.KhoaHocID?.toString?.() || '',
+    tenkhoahoc: dk.KhoaHocID?.tenkhoahoc || '',
+  }));
 
   const { rows, eligibleRows } = await findSessionsForHocVienToday(
     new mongoose.Types.ObjectId(hocvienId),
@@ -115,6 +126,10 @@ async function buildRecognizePayloadFromHocVienId(hocvienId, meta = {}) {
       userId: hv.userId.toString(),
       hovaten: user?.hovaten || '',
       email: user?.email || '',
+      soDienThoai: user?.soDienThoai || '',
+      gioitinh: user?.gioitinh,
+      ngaysinh: user?.ngaysinh || null,
+      registeredCourses,
       maHocVienDisplay: displayMaHocVien(hv._id),
       distance: meta.distance != null ? meta.distance : 0,
     },
