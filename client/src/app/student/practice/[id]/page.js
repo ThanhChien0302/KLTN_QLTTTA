@@ -20,7 +20,7 @@ export default function PracticeTestingPage() {
   const [submitted, setSubmitted] = useState(false);
   const [score, setScore] = useState({ correct: 0, total: 0 });
   
-  const [timeLeft, setTimeLeft] = useState(null); // in seconds
+  const [timeLeft, setTimeLeft] = useState(null);
   const timerRef = useRef(null);
 
   // Thêm state để track xem flashcard đã lật chưa
@@ -58,12 +58,11 @@ export default function PracticeTestingPage() {
     if (practiceId) fetchDetail();
   }, [practiceId]);
 
-  // Hook Countdown Timer
   useEffect(() => {
     if (timeLeft === null || submitted) return;
     
     if (timeLeft <= 0) {
-      handleSubmit(); // Auto submit when time runs out
+      handleSubmit();
       return;
     }
     
@@ -128,7 +127,6 @@ export default function PracticeTestingPage() {
           break;
         case "multiSelect":
           gradeableTotal++;
-          // Compare sorted arrays
           const studentAns = Array.isArray(ans) ? [...ans].sort() : [];
           const correctAns = Array.isArray(q.dapAnDungIndices) ? [...q.dapAnDungIndices].sort() : [];
           if (JSON.stringify(studentAns) === JSON.stringify(correctAns)) {
@@ -136,7 +134,6 @@ export default function PracticeTestingPage() {
           }
           break;
         case "flashcard":
-          // Flashcard is not normally graded
           break;
       }
     });
@@ -144,7 +141,6 @@ export default function PracticeTestingPage() {
     const newScore = { correct: correctCount, total: gradeableTotal };
     setScore(newScore);
 
-    // Call API to save practice result
     if (gradeableTotal > 0) {
       const saveResult = async () => {
         try {
@@ -193,7 +189,6 @@ export default function PracticeTestingPage() {
 
   const currentQuestion = questions[currentIndex];
 
-  // Helper check correctness cho UI lúc review (submitted = true)
   const isCorrectReview = (idx) => {
     const q = questions[idx];
     const ans = answers[idx];
@@ -266,7 +261,6 @@ export default function PracticeTestingPage() {
                   {currentQuestion.noiDung}
                 </p>
 
-                {/* Question Type Interfaces */}
                 <div className="flex-1 flex flex-col justify-center">
                   
                   {/* === QUIZ === */}
@@ -277,7 +271,6 @@ export default function PracticeTestingPage() {
                          let btnClass = "border-gray-200 hover:bg-gray-50 bg-white";
                          if (isSelected) btnClass = "border-blue-500 bg-blue-50 shadow-sm";
                          
-                         // Review mode styling
                          if (submitted) {
                            if (idx === currentQuestion.dapAnDungIndex) btnClass = "border-green-500 bg-green-50 text-green-900"; // correct answer
                            else if (isSelected && (idx !== currentQuestion.dapAnDungIndex)) btnClass = "border-red-500 bg-red-50 text-red-900 line-through"; // wrong selection
@@ -494,7 +487,6 @@ export default function PracticeTestingPage() {
         </div>
       )}
 
-      {/* Global strict styling for 3D flip card */}
       <style jsx global>{`
         .perspective-1000 { perspective: 1000px; }
         .transform-style-3d { transform-style: preserve-3d; }

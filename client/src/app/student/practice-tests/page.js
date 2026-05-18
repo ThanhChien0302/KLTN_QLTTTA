@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-// Define some colors for different types of tests
 const BADGE_COLORS = {
   TOEIC: "bg-blue-50 text-blue-800 border-blue-200 dark:bg-blue-500/20 dark:text-blue-200 dark:border-blue-400",
   IELTS: "bg-red-50 text-red-800 border-red-200 dark:bg-red-500/20 dark:text-red-200 dark:border-red-400",
@@ -70,7 +69,6 @@ export default function PracticeTests() {
     );
   }
 
-  // Group mock tests by Chung Chi
   const groupedMockTests = mockTests.reduce((acc, test) => {
     const cert = test.chungChi || "Khác";
     if (!acc[cert]) acc[cert] = [];
@@ -86,7 +84,6 @@ export default function PracticeTests() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column: List of Mock Tests grouped */}
         <div className="lg:col-span-2 space-y-8">
           {Object.keys(groupedMockTests).length === 0 ? (
             <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm p-8 text-center border border-gray-100 dark:border-gray-800">
@@ -138,7 +135,6 @@ export default function PracticeTests() {
           )}
         </div>
 
-        {/* Bottom Section: History */}
         <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
           <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center border-b pb-2">
             <svg className="w-5 h-5 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>

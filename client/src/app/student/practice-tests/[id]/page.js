@@ -33,7 +33,7 @@ export default function MockTestTakePage({ params }) {
         if (res.ok) {
           const json = await res.json();
           setTestData(json.data);
-          setTimeLeft(json.data.thoiGianLamBai * 60); // minutes to seconds
+          setTimeLeft(json.data.thoiGianLamBai * 60);
         } else {
           setError("Không thể tải bài thi.");
         }
@@ -53,7 +53,7 @@ export default function MockTestTakePage({ params }) {
         setTimeLeft(prev => {
           if (prev <= 1) {
             clearInterval(timerRef.current);
-            handleSubmit(true); // Auto submit when time is up
+            handleSubmit(true);
             return 0;
           }
           return prev - 1;
@@ -61,10 +61,8 @@ export default function MockTestTakePage({ params }) {
       }, 1000);
     }
     return () => clearInterval(timerRef.current);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeLeft, isSubmitting]);
 
-  // Handle navigation blocking and tab closing
   useEffect(() => {
     const handleBeforeUnload = (e) => {
       if (!isSubmitting) {
@@ -179,12 +177,12 @@ export default function MockTestTakePage({ params }) {
   const renderQuestion = (q, index) => {
     const ans = answers[q._id] || {};
     return (
-      <div key={q._id} id={`q-${q._id}`} className="mb-6 p-5 bg-white rounded-lg border border-gray-100 shadow-sm">
-        <h4 className="font-semibold text-gray-800 mb-3 flex gap-2">
-          <span className="shrink-0 w-8 h-8 flex items-center justify-center bg-blue-50 text-blue-600 rounded-full text-sm">
+      <div key={q._id} id={`q-${q._id}`} className="mb-8 last:mb-0 border-b border-dashed border-gray-200 pb-6 last:border-0 last:pb-0">
+        <h4 className="font-semibold text-gray-800 mb-4 flex items-start gap-3">
+          <span className="shrink-0 w-8 h-8 flex items-center justify-center bg-blue-600 text-white rounded-full text-sm font-bold shadow-sm mt-0.5">
             {index + 1}
           </span>
-          <div dangerouslySetInnerHTML={{ __html: q.noiDung }} className="pt-1"></div>
+          <div dangerouslySetInnerHTML={{ __html: q.noiDung }} className="pt-1 leading-relaxed"></div>
         </h4>
 
         <div className="pl-10 space-y-2">
@@ -244,7 +242,6 @@ export default function MockTestTakePage({ params }) {
 
   return (
     <div className="bg-gray-50 min-h-screen pb-20">
-      {/* Sticky Header with Timer */}
       <div className="sticky -top-8 -mt-8 -mx-8 px-14 bg-white border-b shadow-sm py-4 z-20 flex justify-between items-center mb-8">
         <div>
           <h1 className="text-xl font-bold text-gray-800">{testData.tenDe}</h1>
@@ -267,21 +264,27 @@ export default function MockTestTakePage({ params }) {
 
       <div className="max-w-4xl mx-auto px-4">
         {testData.phans?.map((phan, pIndex) => (
-          <div key={phan._id} className="mb-10">
-            <h2 className="text-2xl font-bold text-gray-800 border-b-2 border-gray-200 pb-2 mb-6">Phần {pIndex + 1}: {phan.tenPhan}</h2>
+          <div key={phan._id} className="mb-10 bg-white rounded-2xl shadow-sm border border-gray-200 p-6 md:p-8">
+            <h2 className="text-2xl font-bold text-gray-800 border-b-2 border-blue-500 pb-3 mb-8 inline-block">Phần {pIndex + 1}: {phan.tenPhan}</h2>
 
-            {/* Questions without group */}
+            <div className="space-y-2">
+
             {phan.cauHoi?.map(q => {
               const elem = renderQuestion(q, globalQuestionIndex);
               globalQuestionIndex++;
               return elem;
             })}
+            </div>
 
-            {/* Groups */}
-            {phan.nhom?.map((nhom, nIndex) => (
-              <div key={nhom._id} className="mb-8 p-6 bg-blue-50/50 rounded-xl border border-blue-100">
-                <div className="prose max-w-none text-gray-800 mb-6 bg-white p-4 rounded-lg shadow-sm" dangerouslySetInnerHTML={{ __html: nhom.noiDung }}></div>
-                <div className="space-y-6">
+            {phan.nhom?.map((nhom, nIndex) => {
+              const hasContent = nhom.noiDung && nhom.noiDung.trim() !== '' && nhom.noiDung !== '<p></p>' && nhom.noiDung !== '<p><br></p>';
+              
+              return (
+              <div key={nhom._id} className="mb-10 mt-6">
+                {hasContent && (
+                  <div className="prose max-w-none text-gray-800 mb-6 bg-blue-50/50 p-6 rounded-xl border border-blue-100" dangerouslySetInnerHTML={{ __html: nhom.noiDung }}></div>
+                )}
+                <div className={`space-y-2 ${hasContent ? 'border-l-2 border-blue-200 pl-4 md:pl-6 ml-2 md:ml-4' : ''}`}>
                   {nhom.cauHoi?.map(q => {
                     const elem = renderQuestion(q, globalQuestionIndex);
                     globalQuestionIndex++;
@@ -289,7 +292,7 @@ export default function MockTestTakePage({ params }) {
                   })}
                 </div>
               </div>
-            ))}
+            )})}
           </div>
         ))}
 

@@ -80,17 +80,14 @@ export default function LeaveRequest() {
   useEffect(() => {
     fetchCourses();
     fetchLeaveRequests();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Fetch sessions when course changes
   useEffect(() => {
     if (formData.courseId) {
       fetchSessions(formData.courseId);
     } else {
       setSessions([]);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData.courseId]);
 
   const handleSubmit = async (e) => {
@@ -188,7 +185,7 @@ export default function LeaveRequest() {
                   const startHour = new Date(s.giobatdau).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
                   return (
                     <option key={s.id} value={s.id}>
-                      {s.tenbai} (Thứ {s.thutu}) - {dateStr} lúc {startHour}
+                      {s.tenbai} (Bài học thứ {s.thutu}) - {dateStr} lúc {startHour}
                     </option>
                   );
                 })}
@@ -273,8 +270,8 @@ export default function LeaveRequest() {
       {/* Toast Notification */}
       {toast.show && (
         <div className={`fixed bottom-8 right-8 z-50 px-6 py-4 rounded-xl shadow-xl flex items-center gap-3 animate-slide-in-up transition-all ${toast.type === 'success'
-            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-emerald-200/50'
-            : 'bg-red-50 text-red-700 border border-red-200 shadow-red-200/50'
+          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-emerald-200/50'
+          : 'bg-red-50 text-red-700 border border-red-200 shadow-red-200/50'
           }`}>
           {toast.type === 'success' ? (
             <div className="p-1 bg-emerald-100 rounded-full text-emerald-600">

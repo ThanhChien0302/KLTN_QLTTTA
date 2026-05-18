@@ -132,6 +132,13 @@ exports.createLeaveRequest = async (req, res) => {
             return res.status(404).json({ success: false, message: "Buổi học không tồn tại" });
         }
 
+        // Chặn xin nghỉ nếu đã quá giờ bắt đầu buổi học
+        const now = new Date();
+        const sessionTime = new Date(buoihoc.giobatdau);
+        if (now > sessionTime) {
+            return res.status(400).json({ success: false, message: "Buổi học này đã bắt đầu hoặc kết thúc, không thể xin phép được nữa" });
+        }
+
         // Check if there is already a record
         let record = await ThamGiaBuoiHoc.findOne({
             dangkykhoahocID: dangKyKhoaHocId,
@@ -141,6 +148,9 @@ exports.createLeaveRequest = async (req, res) => {
         if (record) {
             if (record.trangthai === 'excused') {
                 return res.status(400).json({ success: false, message: "Bạn đã xin nghỉ phép cho buổi học này rồi" });
+            }
+            if (record.trangthai === 'present' || record.trangthai === 'absent') {
+                return res.status(400).json({ success: false, message: "Buổi học này đã được điểm danh, bạn không thể xin nghỉ phép nữa" });
             }
             // Update existing record
             record.trangthai = 'excused';

@@ -72,7 +72,6 @@ export default function PracticeList() {
     );
   }
 
-  // Filter exercises
   const filteredPractices = practices.filter((practice) => {
     const pType = practice.loaiBai || "other";
     const mappedInfo = LOAI_BAI_MAP[pType];
