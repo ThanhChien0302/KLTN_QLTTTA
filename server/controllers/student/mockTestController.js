@@ -6,10 +6,8 @@ const KetQuaDeThi = require('../../models/KetQuaDeThi');
 const HocVien = require('../../models/HocVien');
 const DangKyKhoaHoc = require('../../models/DangKyKhoaHoc');
 
-// 1. Get List of Mock Tests
 exports.getMockTests = async (req, res) => {
   try {
-    // Identify student and their enrolled courses
     const student = await HocVien.findOne({ userId: req.user._id });
     if (!student) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy học viên' });
@@ -18,7 +16,6 @@ exports.getMockTests = async (req, res) => {
     const dangKyKhoaHocs = await DangKyKhoaHoc.find({ hocvienId }).select('KhoaHocID');
     const khoaHocIds = dangKyKhoaHocs.map((dk) => dk.KhoaHocID);
 
-    // Fetch mock tests that belong to the student's courses or are global (khoaHocID null)
     const tests = await DeThiMau.find({ $or: [{ khoaHocID: { $in: khoaHocIds } }, { khoaHocID: null }] })
       .populate('khoaHocID', 'tenKhoaHoc')
       .sort({ chungChi: 1, createdAt: -1 });
@@ -39,19 +36,15 @@ exports.getMockTestDetail = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Không tìm thấy đề thi' });
     }
 
-    // Get Sections
     const phans = await DeThiMauPhan.find({ deThiMauID: id }).sort({ thuTu: 1 }).lean();
     
     for (let phan of phans) {
-      // Get Groups for Section
       const nhoms = await DeThiMauPhanNhom.find({ deThiMauPhanID: phan._id }).sort({ thuTu: 1 }).lean();
       
-      // Get Questions for Section (without group)
       const sectionQuestions = await DeThiMauCauHoi.find({ 
         deThiMauPhanID: phan._id, 
         deThiMauPhanNhomID: null 
       }).sort({ thuTu: 1 }).lean();
-      // Remove answers from payload directly to prevent cheating
       sectionQuestions.forEach(q => {
         delete q.dapAnDungIndex;
         delete q.dapAnDungIndices;
@@ -86,7 +79,6 @@ exports.submitMockTest = async (req, res) => {
   try {
     const userId = req.user._id;
     const { deThiMauID, thoiGianLamBai, answers } = req.body;
-    // answers format: { questionId: { loaiCauHoi: "mcq", cauTraLoiIndex: 1 } }
     
     const deThi = await DeThiMau.findById(deThiMauID);
     if (!deThi) {
@@ -110,7 +102,6 @@ exports.submitMockTest = async (req, res) => {
       };
 
       if (studentAns) {
-        // Compare based on loaiCauHoi
         if (q.loaiCauHoi === 'mcq') {
           detailInfo.cauTraLoiIndex = studentAns.cauTraLoiIndex;
           if (studentAns.cauTraLoiIndex === q.dapAnDungIndex) ketQua = true;
@@ -196,7 +187,6 @@ exports.getTestResultDetail = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Không tìm thấy kết quả thi' });
     }
     
-    // Ensure the result belongs to current user
     if (result.userId.toString() !== req.user._id.toString()) {
       return res.status(403).json({ success: false, message: 'Không có quyền truy cập' });
     }
