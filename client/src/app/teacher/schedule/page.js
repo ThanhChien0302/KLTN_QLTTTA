@@ -129,10 +129,14 @@ export default function Schedule() {
       return `${currentDate.getDate().toString().padStart(2, '0')}/${(currentDate.getMonth() + 1).toString().padStart(2, '0')}/${currentDate.getFullYear()}`;
     }
     if (view === "week") {
-      const firstDay = new Date(currentDate);
-      firstDay.setDate(currentDate.getDate() - currentDate.getDay() + 1); // thứ 2
+      const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
+      const dayOfWeek = firstDay.getDay();
+      const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+      firstDay.setDate(firstDay.getDate() + diffToMonday);
+
       const lastDay = new Date(firstDay);
       lastDay.setDate(firstDay.getDate() + 6);
+      
       return `${firstDay.getDate().toString().padStart(2, '0')}/${(firstDay.getMonth() + 1).toString().padStart(2, '0')} - ${lastDay.getDate().toString().padStart(2, '0')}/${(lastDay.getMonth() + 1).toString().padStart(2, '0')}/${lastDay.getFullYear()}`;
     }
     if (view === "month") {
@@ -159,11 +163,14 @@ export default function Schedule() {
 
     // ===== WEEK =====
     if (view === "week") {
-      const firstDay = new Date(now);
-      firstDay.setDate(now.getDate() - now.getDay() + 1); // thứ 2
+      const firstDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const dayOfWeek = firstDay.getDay();
+      const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+      firstDay.setDate(firstDay.getDate() + diffToMonday);
 
       const lastDay = new Date(firstDay);
       lastDay.setDate(firstDay.getDate() + 6);
+      lastDay.setHours(23, 59, 59, 999);
 
       return scheduleData.filter(d => {
         const date = parseDate(d.date);
